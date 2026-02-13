@@ -366,10 +366,55 @@ class _DoctorAppointmentCard extends StatelessWidget {
     );
   }
 
-  Future<void> _updateStatus(String newStatus) async {
-    await FirebaseFirestore.instance
-        .collection('appointments')
-        .doc(appointmentId)
-        .update({'status': newStatus});
-  }
+    Future<void> _updateStatus(String newStatus) async {
+      final Map<String, dynamic> updateData = {
+        'status': newStatus,
+      };
+
+      if (newStatus == 'approved') {
+        // 🔹 date example: "2026-2-3"
+        final String dateStr = appointment['date'];
+
+        // 🔹 time example: "7:55 PM – 9:00 PM"
+        final String rawTime = appointment['time'];
+        final String startTime = rawTime.split('–').first.trim(); // "7:55 PM"
+
+        // ---- Parse DATE ----
+        final parts = dateStr.split('-');
+        final int year = int.parse(parts[0]);
+        final int month = int.parse(parts[1]);
+        final int day = int.parse(parts[2]);
+
+        // ---- Parse TIME ----
+        final timeParts = startTime.split(' ');
+        final clock = timeParts[0]; // "7:55"
+        final meridiem = timeParts[1]; // "PM"
+
+        final hm = clock.split(':');
+        int hour = int.parse(hm[0]);
+        final int minute = int.parse(hm[1]);
+
+        // Convert PM → 24h
+        if (meridiem == 'PM' && hour != 12) hour += 12;
+        if (meridiem == 'AM' && hour == 12) hour = 0;
+
+        final DateTime appointmentDateTime = DateTime(
+          year,
+          month,
+          day,
+          hour,
+          minute,
+        );
+
+        updateData.addAll({
+          'appointmentAt': Timestamp.fromDate(appointmentDateTime),
+          'reminderSent': false,
+        });
+      }
+
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update(updateData);
+    }
 }

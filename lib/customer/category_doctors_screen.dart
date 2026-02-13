@@ -43,7 +43,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
       /// BODY
       body: Column(
         children: [
-          /// 🧩 SERVICE HEADER (NEW – SAFE)
+          /// 🧩 CATEGORY HEADER
           Container(
             margin: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             padding: const EdgeInsets.all(16),
@@ -52,26 +52,18 @@ class CategoryDoctorsScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// IMAGE
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: kSoftBlue,
                   backgroundImage:
                       imageUrl != null ? NetworkImage(imageUrl!) : null,
                   child: imageUrl == null
-                      ? const Icon(
-                          Icons.medical_services,
-                          color: kPrimaryBlue,
-                          size: 26,
-                        )
+                      ? const Icon(Icons.medical_services,
+                          color: kPrimaryBlue)
                       : null,
                 ),
-
                 const SizedBox(width: 14),
-
-                /// TEXT
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +93,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
             ),
           ),
 
-          /// 👨‍⚕️ DOCTORS LIST (UNCHANGED)
+          /// 👨‍⚕️ DOCTORS LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -139,6 +131,8 @@ class CategoryDoctorsScreen extends StatelessWidget {
                     final int totalRatings =
                         (data['totalRatings'] ?? 0) as int;
 
+                    final String? photoUrl = data['photoUrl'];
+
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -169,16 +163,20 @@ class CategoryDoctorsScreen extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            /// AVATAR
-                            const CircleAvatar(
+                            /// 👤 DOCTOR PROFILE IMAGE
+                            CircleAvatar(
                               radius: 30,
-                              backgroundImage:
-                                  AssetImage('assets/placeholder-400x400.jpg'),
+                              backgroundColor: kSoftBlue,
+                              backgroundImage: photoUrl != null
+                                  ? NetworkImage(photoUrl)
+                                  : const AssetImage(
+                                          'assets/placeholder-400x400.jpg')
+                                      as ImageProvider,
                             ),
 
                             const SizedBox(width: 14),
 
-                            /// INFO
+                            /// ℹ️ INFO
                             Expanded(
                               child: Column(
                                 crossAxisAlignment:
@@ -246,7 +244,6 @@ class CategoryDoctorsScreen extends StatelessWidget {
 
                             const SizedBox(width: 6),
 
-                            /// ARROW
                             const Icon(
                               Icons.arrow_forward_ios,
                               size: 14,

@@ -26,13 +26,45 @@ class _RescheduleAppointmentScreenState
 
   List<String> bookedTimes = [];
 
+  Map<String, dynamic> doctorData = {};
+  bool loadingDoctor = true;
+
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
-  /// 🔑 DOCTOR AVAILABILITY (COPIED LOGIC)
+  final List<String> fallbackTimes = [
+    '09:00 AM – 10:00 AM',
+    '12:00 PM – 01:00 PM',
+    '04:00 PM – 05:00 PM',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    loadDoctor();
+  }
+
+  /// 🔥 LOAD DOCTOR DATA (SOURCE OF TRUTH)
+  Future<void> loadDoctor() async {
+    final doctorId = widget.appointmentData['doctorId'];
+
+    final doc = await FirebaseFirestore.instance
+        .collection('doctors')
+        .doc(doctorId)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        doctorData = doc.data()!;
+        loadingDoctor = false;
+      });
+    }
+  }
+
+  /// 🔑 DOCTOR AVAILABILITY (SAME AS DoctorDetailsScreen)
   Map<String, dynamic> get availability {
-    final data = widget.appointmentData['availability'];
+    final data = doctorData['availability'];
     if (data == null || data is! Map) return {};
     return Map<String, dynamic>.from(data);
   }
@@ -41,14 +73,6 @@ class _RescheduleAppointmentScreenState
     return DateFormat('EEEE').format(day).toLowerCase();
   }
 
-  /// ⏱️ FALLBACK (same as booking)
-  final List<String> fallbackTimes = [
-    '09:00 AM – 10:00 AM',
-    '12:00 PM – 01:00 PM',
-    '04:00 PM – 05:00 PM',
-  ];
-
-  /// ✅ AVAILABLE TIME RANGES (COPIED FROM DoctorDetailsScreen)
   List<String> availableRangesForDay(DateTime day) {
     if (availability.isEmpty) return fallbackTimes;
 
@@ -72,12 +96,7 @@ class _RescheduleAppointmentScreenState
     return ranges.isEmpty ? fallbackTimes : ranges;
   }
 
-  bool canReschedule() {
-    final Timestamp ts = widget.appointmentData['dateTime'];
-    return ts.toDate().difference(DateTime.now()).inHours >= 24;
-  }
-
-  /// 🔥 LOAD BOOKED TIME RANGES
+  /// 🔥 LOAD BOOKED TIMES
   Future<void> loadBookedTimes(DateTime day) async {
     final dateString = '${day.year}-${day.month}-${day.day}';
 
@@ -94,10 +113,10 @@ class _RescheduleAppointmentScreenState
     });
   }
 
+  /// 🔄 RESCHEDULE
   Future<void> rescheduleAppointment() async {
     if (_selectedDay == null || _selectedTime == null) return;
 
-    // Parse start time from range
     final startTime = _selectedTime!.split(' – ').first;
     final parsed = DateFormat('hh:mm a').parse(startTime);
 
@@ -115,10 +134,12 @@ class _RescheduleAppointmentScreenState
         .update({
       'date':
           '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
-      'time': _selectedTime, // ✅ RANGE
+      'time': _selectedTime,
       'dateTime': Timestamp.fromDate(newDateTime),
       'status': 'pending',
     });
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Appointment rescheduled')),
@@ -129,15 +150,9 @@ class _RescheduleAppointmentScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (!canReschedule()) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Reschedule')),
-        body: const Center(
-          child: Text(
-            'You can only reschedule 24 hours before the appointment.',
-            textAlign: TextAlign.center,
-          ),
-        ),
+    if (loadingDoctor) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -168,7 +183,7 @@ class _RescheduleAppointmentScreenState
             ),
             const SizedBox(height: 8),
 
-            /// 📅 CALENDAR
+            /// 📅 CALENDAR (SAME RULES AS DOCTOR DETAILS)
             TableCalendar(
               firstDay: DateTime.now(),
               lastDay: DateTime.now().add(const Duration(days: 60)),
@@ -200,7 +215,6 @@ class _RescheduleAppointmentScreenState
             ),
             const SizedBox(height: 10),
 
-            /// ⏱️ TIME RANGES
             Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -209,15 +223,13 @@ class _RescheduleAppointmentScreenState
                 final selected = time == _selectedTime;
 
                 return ChoiceChip(
-                  label: Text(
-                    time,
-                    style: const TextStyle(fontSize: 13),
-                  ),
+                  label: Text(time),
                   selected: selected,
                   selectedColor: kPrimaryBlue,
                   onSelected: isBooked
                       ? null
-                      : (_) => setState(() => _selectedTime = time),
+                      : (_) =>
+                          setState(() => _selectedTime = time),
                   labelStyle: TextStyle(
                     color: selected ? kWhite : kDarkBlue,
                   ),

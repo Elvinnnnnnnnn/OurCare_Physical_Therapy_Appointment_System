@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const admin = require("firebase-admin");
@@ -233,3 +234,97 @@ exports.adminDeleteUser = onCall(async (request) => {
 
   return { success: true };
 });
+
+/* ============================
+   APPOINTMENT STATUS NOTIFICATION
+============================ */
+const db = admin.firestore(); // ✅ REQUIRED
+
+exports.onAppointmentStatusChange = onDocumentUpdated(
+  {
+    document: "appointments/{appointmentId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before?.data();
+    const after = event.data.after?.data();
+
+    if (!before || !after) return;
+    if (before.status === after.status) return;
+
+    if (!["approved", "cancelled"].includes(after.status)) return;
+
+    const isApproved = after.status === "approved";
+
+    const title = isApproved
+      ? "Appointment Approved"
+      : "Appointment Cancelled";
+
+    const body = isApproved
+      ? `Dr. ${after.doctorName} approved your appointment on ${after.date} at ${after.time}.`
+      : `Dr. ${after.doctorName} cancelled your appointment scheduled on ${after.date}.`;
+
+    await db.collection("notifications").add({
+      userId: after.userId,
+      title,
+      body,
+      read: false,
+      type: "appointment_status",
+      appointmentId: event.params.appointmentId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log("✅ Status notification created");
+  }
+);
+
+const { onSchedule } =
+  require("firebase-functions/v2/scheduler");
+
+exports.sendAppointmentReminders = onSchedule(
+  {
+    schedule: "every 1 minutes",
+    region: "us-central1",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const twoMinutesAgo = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() - 2 * 60 * 1000
+    );
+
+    const snapshot = await db
+      .collection("appointments")
+      .where("status", "==", "approved")
+      .where("reminderSent", "==", false)
+      .where("appointmentAt", "<=", twoMinutesAgo)
+      .get();
+
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+
+    for (const doc of snapshot.docs) {
+      const appt = doc.data();
+
+      const notifRef = db.collection("notifications").doc();
+      batch.set(notifRef, {
+        userId: appt.userId,
+        title: "Appointment Reminder",
+        body: `Your appointment with Dr. ${appt.doctorName} has started.`,
+        read: false,
+        type: "appointment_reminder",
+        appointmentId: doc.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      batch.update(doc.ref, {
+        reminderSent: true,
+      });
+    }
+
+    await batch.commit();
+    console.log("⏰ Appointment reminders sent");
+  }
+);
+

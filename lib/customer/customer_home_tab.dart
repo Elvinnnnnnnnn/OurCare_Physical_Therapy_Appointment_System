@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'doctor_details_screen.dart';
 import 'category_doctors_screen.dart';
+import 'notifications_screen.dart';
 
 class CustomerHomeTab extends StatefulWidget {
   const CustomerHomeTab({super.key});
@@ -30,6 +32,8 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       backgroundColor: kWhite,
       body: SafeArea(
@@ -61,7 +65,58 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              /// 🔔 NOTIFICATIONS (WITH RED BADGE)
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('userId',
+                        isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+                    .where('read', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final hasUnread =
+                      snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                  return Align(
+                    alignment: Alignment.centerRight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.notifications,
+                            color: kPrimaryBlue,
+                            size: 28,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        /// 🔴 RED DOT
+                        if (hasUnread)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               /// 🧩 SERVICES
               const Text(
@@ -84,14 +139,16 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return const Center(
-                          child: CircularProgressIndicator());
+                        child: CircularProgressIndicator(),
+                      );
                     }
 
                     final categories = snapshot.data!.docs;
 
                     if (categories.isEmpty) {
                       return const Center(
-                          child: Text('No services'));
+                        child: Text('No services'),
+                      );
                     }
 
                     return ListView.separated(
@@ -111,9 +168,11 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => CategoryDoctorsScreen(
+                                builder: (_) =>
+                                    CategoryDoctorsScreen(
                                   categoryName: data['name'],
-                                  description: data['description'] ?? '',
+                                  description:
+                                      data['description'] ?? '',
                                   imageUrl: data['imageUrl'],
                                 ),
                               ),
@@ -143,9 +202,8 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('doctors')
-                      .where('available', isEqualTo: true)
                       .where('activated', isEqualTo: true)
-                      .snapshots(), // ✅ COMMA FIXED
+                      .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return const Center(
@@ -156,12 +214,17 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     final allDoctors = snapshot.data!.docs;
 
                     final filteredDoctors = allDoctors.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
+                      final data =
+                          doc.data() as Map<String, dynamic>;
 
                       final name =
-                          (data['name'] ?? '').toString().toLowerCase();
+                          (data['name'] ?? '')
+                              .toString()
+                              .toLowerCase();
                       final category =
-                          (data['categoryName'] ?? '').toString().toLowerCase();
+                          (data['categoryName'] ?? '')
+                              .toString()
+                              .toLowerCase();
 
                       return _searchText.isEmpty ||
                           name.contains(_searchText) ||
@@ -178,7 +241,8 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     }
 
                     return GridView.builder(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding:
+                          const EdgeInsets.only(bottom: 16),
                       itemCount: filteredDoctors.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -315,12 +379,13 @@ class _DoctorCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            /// 🖼️ DOCTOR PHOTO (NEW)
             CircleAvatar(
               radius: 36,
               backgroundColor: Colors.grey.shade200,
               backgroundImage:
-                  photoUrl != null ? NetworkImage(photoUrl) : null,
+                  photoUrl != null
+                      ? NetworkImage(photoUrl)
+                      : null,
               child: photoUrl == null
                   ? const Icon(
                       Icons.person,
@@ -329,9 +394,7 @@ class _DoctorCard extends StatelessWidget {
                     )
                   : null,
             ),
-
             const SizedBox(height: 12),
-
             Text(
               data['name'] ?? 'Unknown Doctor',
               textAlign: TextAlign.center,
@@ -340,9 +403,7 @@ class _DoctorCard extends StatelessWidget {
                 color: kDarkBlue,
               ),
             ),
-
             const SizedBox(height: 4),
-
             Text(
               data['categoryName'] ?? '',
               style: const TextStyle(
@@ -350,9 +411,7 @@ class _DoctorCard extends StatelessWidget {
                 color: Colors.grey,
               ),
             ),
-
             const Spacer(),
-
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 4),
