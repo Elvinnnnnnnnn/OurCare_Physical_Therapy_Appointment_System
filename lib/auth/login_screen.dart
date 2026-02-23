@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_screen.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,7 +38,24 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Login failed');
+        if (user == null) throw Exception('Login failed');
+
+        // ✅ EMAIL VERIFICATION CHECK
+        if (!user.emailVerified) {
+          await FirebaseAuth.instance.signOut();
+
+          if (!mounted) return;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailVerificationScreen(email: user.email!),
+            ),
+          );
+
+          setState(() => _isLoading = false);
+          return;
+        }
 
       // 🔍 CHECK IF THIS USER IS A DOCTOR
       final doctorSnapshot = await FirebaseFirestore.instance

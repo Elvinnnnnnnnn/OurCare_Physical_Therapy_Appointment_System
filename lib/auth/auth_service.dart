@@ -22,8 +22,12 @@ class AuthService {
         password: password,
       );
 
-      final uid = cred.user!.uid;
+      // ✅ SEND VERIFICATION EMAIL HERE
+      final user = cred.user;
+      await user?.sendEmailVerification();
 
+      final uid = user!.uid;
+      
       // 2️⃣ Check if this email already exists in doctors collection
       final doctorQuery = await _firestore
           .collection('doctors')

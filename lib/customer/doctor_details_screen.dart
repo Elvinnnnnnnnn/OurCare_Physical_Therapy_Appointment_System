@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'customer_home.dart';
+import 'payment_screen.dart';
 
 class DoctorDetailsScreen extends StatefulWidget {
   final String doctorId;
@@ -133,40 +134,43 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   }
 
   Future<void> startPayment() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  if (_selectedDay == null || _selectedTime == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select date & time')),
+    if (_selectedDay == null || _selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select date & time')),
+      );
+      return;
+    }
+
+    final doctor = widget.doctorData;
+    final price = doctor['consultationPrice'] ?? 0;
+
+    final paymentRef =
+        await FirebaseFirestore.instance.collection('payments').add({
+      'userId': user.uid,
+      'doctorId': widget.doctorId,
+      'doctorName': doctor['name'],
+      'categoryName': doctor['categoryName'],
+      'amount': price,
+      'currency': 'PHP',
+      'date':
+          '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
+      'time': _selectedTime,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          paymentId: paymentRef.id,
+        ),
+      ),
     );
-    return;
   }
-
-  final doctor = widget.doctorData;
-  final price = doctor['consultationPrice'] ?? 0;
-
-  final paymentRef =
-      await FirebaseFirestore.instance.collection('payments').add({
-    'userId': user.uid,
-    'doctorId': widget.doctorId,
-    'doctorName': doctor['name'],
-    'amount': price,
-    'currency': 'PHP',
-    'date':
-        '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
-    'time': _selectedTime,
-    'status': 'pending',
-    'createdAt': FieldValue.serverTimestamp(),
-  });
-
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => PaymentScreen(paymentId: paymentRef.id),
-    ),
-  );
-}
 
   @override
   Widget build(BuildContext context) {

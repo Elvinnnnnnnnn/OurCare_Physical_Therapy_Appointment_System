@@ -212,8 +212,12 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = appointment['status'];
-    final String patientId = appointment['userId']; // 🔑 patient UID
+    final String paymentStatus =
+      (appointment['paymentStatus'] ?? 'unpaid').toString();
+    final String status =
+      (appointment['status'] ?? 'pending').toString();
+    final String patientId =
+      (appointment['userId'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -283,7 +287,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      appointment['patientName'],
+                     (appointment['patientName'] ?? 'Unknown').toString(),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -291,7 +295,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      appointment['categoryName'],
+                      (appointment['categoryName'] ?? '').toString(),
                       style: const TextStyle(color: Colors.grey),
                     ),
                   ],
@@ -317,6 +321,30 @@ class _DoctorAppointmentCard extends StatelessWidget {
             ],
           ),
 
+          const SizedBox(height: 8),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: paymentStatus == 'approved'
+                  ? Colors.green.withOpacity(0.15)
+                  : Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              paymentStatus == 'approved'
+                  ? 'Payment Approved'
+                  : 'Payment For Verification',
+              style: TextStyle(
+                color: paymentStatus == 'approved'
+                    ? Colors.green
+                    : Colors.orange,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
           const SizedBox(height: 14),
 
           /// DATE & TIME
@@ -325,96 +353,187 @@ class _DoctorAppointmentCard extends StatelessWidget {
               const Icon(Icons.calendar_today,
                   size: 16, color: kPrimaryBlue),
               const SizedBox(width: 6),
-              Text(appointment['date']),
+              Text((appointment['date'] ?? '').toString()),
               const SizedBox(width: 18),
               const Icon(Icons.access_time,
                   size: 16, color: kPrimaryBlue),
               const SizedBox(width: 6),
-              Text(appointment['time']),
+              Text((appointment['time'] ?? '').toString()),
             ],
           ),
 
           /// ACTIONS
-          if (status == 'pending') ...[
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        _updateStatus('cancelled'),
-                    child: const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimaryBlue,
-                      foregroundColor: Colors.white,
+          if (appointment['paymentId'] != null) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.receipt_long),
+              label: const Text('View Payment Screenshot'),
+              onPressed: () async {
+                final paymentId = appointment['paymentId'];
+                if (paymentId == null) return;
+
+                final paymentSnap = await FirebaseFirestore.instance
+                    .collection('payments')
+                    .doc(paymentId)
+                    .get();
+
+                final paymentData = paymentSnap.data();
+                final screenshotUrl = paymentData?['screenshotUrl'];
+
+                if (screenshotUrl == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No screenshot found')),
+                  );
+                  return;
+                }
+
+                showDialog(
+                  context: context,
+                  builder: (_) => Dialog(
+                    backgroundColor: Colors.black,
+                    insetPadding: const EdgeInsets.all(10),
+                    child: InteractiveViewer(
+                      child: Image.network(screenshotUrl),
                     ),
-                    onPressed: () =>
-                        _updateStatus('approved'),
-                    child: const Text('Approve'),
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          ],
+          ),
+        ],
+
+        /// APPROVE / REJECT ONLY WHEN PENDING
+        if (status == 'pending' && paymentStatus == 'for_verification') ...[
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _updateStatus('cancelled'),
+                  child: const Text('Reject'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryBlue,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => _updateStatus('approved'),
+                  child: const Text('Approve'),
+                ),
+              ),
+            ],
+          ),
+        ],
         ],
       ),
     );
   }
 
     Future<void> _updateStatus(String newStatus) async {
-      final Map<String, dynamic> updateData = {
-        'status': newStatus,
-      };
+    final Map<String, dynamic> updateData = {
+      'status': newStatus,
+    };
 
-      if (newStatus == 'approved') {
-        // 🔹 date example: "2026-2-3"
-        final String dateStr = appointment['date'];
+    if (newStatus == 'approved') {
+      final String dateStr =
+        (appointment['date'] ?? '').toString();
+      final String rawTime =
+        (appointment['time'] ?? '').toString();
+      final String startTime = rawTime.split('–').first.trim();
+      final parts = dateStr.split('-');
+      final int year = int.parse(parts[0]);
+      final int month = int.parse(parts[1]);
+      final int day = int.parse(parts[2]);
 
-        // 🔹 time example: "7:55 PM – 9:00 PM"
-        final String rawTime = appointment['time'];
-        final String startTime = rawTime.split('–').first.trim(); // "7:55 PM"
+      final timeParts = startTime.split(' ');
+      final clock = timeParts[0];
+      final meridiem = timeParts[1];
 
-        // ---- Parse DATE ----
-        final parts = dateStr.split('-');
-        final int year = int.parse(parts[0]);
-        final int month = int.parse(parts[1]);
-        final int day = int.parse(parts[2]);
+      final hm = clock.split(':');
+      int hour = int.parse(hm[0]);
+      final int minute = int.parse(hm[1]);
 
-        // ---- Parse TIME ----
-        final timeParts = startTime.split(' ');
-        final clock = timeParts[0]; // "7:55"
-        final meridiem = timeParts[1]; // "PM"
+      if (meridiem == 'PM' && hour != 12) hour += 12;
+      if (meridiem == 'AM' && hour == 12) hour = 0;
 
-        final hm = clock.split(':');
-        int hour = int.parse(hm[0]);
-        final int minute = int.parse(hm[1]);
+      final DateTime appointmentDateTime = DateTime(
+        year,
+        month,
+        day,
+        hour,
+        minute,
+      );
 
-        // Convert PM → 24h
-        if (meridiem == 'PM' && hour != 12) hour += 12;
-        if (meridiem == 'AM' && hour == 12) hour = 0;
+      updateData.addAll({
+        'appointmentAt': Timestamp.fromDate(appointmentDateTime),
+        'reminderSent': false,
+        'paymentStatus': 'approved',
+      });
 
-        final DateTime appointmentDateTime = DateTime(
-          year,
-          month,
-          day,
-          hour,
-          minute,
-        );
-
-        updateData.addAll({
-          'appointmentAt': Timestamp.fromDate(appointmentDateTime),
-          'reminderSent': false,
+      // 🔥 ALSO UPDATE PAYMENT DOCUMENT
+      if (appointment['paymentId'] != null) {
+        await FirebaseFirestore.instance
+            .collection('payments')
+            .doc(appointment['paymentId'])
+            .update({
+          'status': 'approved',
+          'approvedAt': FieldValue.serverTimestamp(),
         });
       }
-
-      await FirebaseFirestore.instance
-          .collection('appointments')
-          .doc(appointmentId)
-          .update(updateData);
     }
+
+    if (newStatus == 'cancelled') {
+      if (appointment['paymentId'] != null) {
+        await FirebaseFirestore.instance
+            .collection('payments')
+            .doc(appointment['paymentId'])
+            .update({
+          'status': 'rejected',
+        });
+      }
+    }
+
+    await FirebaseFirestore.instance
+        .collection('appointments')
+        .doc(appointmentId)
+        .update(updateData);
+  }
+
+    Future<void> _viewPaymentProof(BuildContext context) async {
+    final paymentId = appointment['paymentId'];
+    if (paymentId == null) return;
+
+    final paymentSnap = await FirebaseFirestore.instance
+        .collection('payments')
+        .doc(paymentId)
+        .get();
+
+    final paymentData = paymentSnap.data();
+    if (paymentData == null) return;
+
+    final String? imageUrl = paymentData['screenshotUrl'];
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No screenshot uploaded')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(10),
+        child: InteractiveViewer(
+          child: Image.network(imageUrl),
+        ),
+      ),
+    );
+  }
 }

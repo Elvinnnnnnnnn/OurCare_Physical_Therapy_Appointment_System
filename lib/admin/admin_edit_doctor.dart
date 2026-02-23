@@ -31,6 +31,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   late bool activated;
 
   File? _imageFile;
+  File? _qrImageFile;
   final ImagePicker _picker = ImagePicker();
 
   // 🎨 Admin colors
@@ -59,7 +60,9 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   Future<void> _pickPhoto() async {
     final picked = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 75,
+      imageQuality: 40,
+      maxWidth: 1080,
+      maxHeight: 1080,
     );
 
     if (picked != null) {
@@ -68,6 +71,19 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       });
     }
   }
+
+  Future<void> _pickQrImage() async {
+  final picked = await _picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 75,
+  );
+
+  if (picked != null) {
+    setState(() {
+      _qrImageFile = File(picked.path);
+    });
+  }
+}
 
   /// ======================
   /// UPLOAD PHOTO
@@ -88,6 +104,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
     setState(() => isLoading = true);
 
     final photoUrl = await _uploadPhoto();
+    final qrUrl = await _uploadQrImage();
 
     await FirebaseFirestore.instance
         .collection('doctors')
@@ -100,6 +117,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       'photoUrl': photoUrl,
       'consultationPrice': int.tryParse(priceCtrl.text.trim()) ?? 0,
       'currency': 'PHP',
+      'qrImageUrl': qrUrl,
     });
 
     setState(() => isLoading = false);
@@ -112,6 +130,20 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
     Navigator.pop(context);
   }
+
+  Future<String?> _uploadQrImage() async {
+  if (_qrImageFile == null) {
+    return widget.doctorData['qrImageUrl'];
+  }
+
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('doctor_qr')
+      .child('${widget.doctorId}_qr.jpg');
+
+  await ref.putFile(_qrImageFile!);
+  return await ref.getDownloadURL();
+}
 
   @override
   void dispose() {
@@ -187,6 +219,48 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                         color: kDarkBlue, size: 28)
                     : null,
               ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          _sectionTitle('GCash QR Code'),
+
+          _card(
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _pickQrImage,
+                  child: Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: kSoftBlue,
+                      borderRadius: BorderRadius.circular(12),
+                      image: _qrImageFile != null
+                          ? DecorationImage(
+                              image: FileImage(_qrImageFile!),
+                              fit: BoxFit.cover,
+                            )
+                          : widget.doctorData['qrImageUrl'] != null
+                              ? DecorationImage(
+                                  image: NetworkImage(widget.doctorData['qrImageUrl']),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                    ),
+                    child: _qrImageFile == null &&
+                            widget.doctorData['qrImageUrl'] == null
+                        ? const Center(
+                            child: Text(
+                              'Tap to upload QR Code',
+                              style: TextStyle(color: kDarkBlue),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              ],
             ),
           ),
 

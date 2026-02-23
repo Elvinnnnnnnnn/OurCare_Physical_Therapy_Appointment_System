@@ -266,6 +266,52 @@ class AppointmentCard extends StatelessWidget {
             ],
           ),
 
+          const SizedBox(height: 14),
+
+          /// VIEW PAYMENT SCREENSHOT
+          if (appointment['paymentId'] != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.receipt_long, color: kPrimaryBlue),
+                label: const Text(
+                  'View Payment Screenshot',
+                  style: TextStyle(color: kPrimaryBlue),
+                ),
+                onPressed: () async {
+                  final paymentId = appointment['paymentId'];
+
+                  final paymentSnap = await FirebaseFirestore.instance
+                      .collection('payments')
+                      .doc(paymentId)
+                      .get();
+
+                  final paymentData = paymentSnap.data();
+                  final screenshotUrl = paymentData?['screenshotUrl'];
+
+                  if (screenshotUrl == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No screenshot found')),
+                    );
+                    return;
+                  }
+
+                  showDialog(
+                    context: context,
+                    builder: (_) => Dialog(
+                      backgroundColor: Colors.black,
+                      insetPadding: const EdgeInsets.all(10),
+                      child: InteractiveViewer(
+                        child: Image.network(screenshotUrl),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
           /// RESCHEDULE
           if (status == 'pending') ...[
             const SizedBox(height: 14),

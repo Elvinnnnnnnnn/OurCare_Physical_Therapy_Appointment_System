@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,6 +24,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
 
   bool _isLoading = false;
 
+  File? _qrFile;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
@@ -69,6 +69,19 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
     }
   }
 
+  Future<void> _pickQrImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _qrFile = File(picked.path);
+      });
+    }
+  }
+
   /// ======================
   /// UPLOAD IMAGE
   /// ======================
@@ -81,6 +94,18 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
         .child('${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
 
     await ref.putFile(_imageFile!);
+    return await ref.getDownloadURL();
+  }
+
+  Future<String?> _uploadQrImage(String email) async {
+    if (_qrFile == null) return null;
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('doctor_qr')
+        .child('${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
+
+    await ref.putFile(_qrFile!);
     return await ref.getDownloadURL();
   }
 
@@ -105,6 +130,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
     try {
       final email = _emailController.text.trim().toLowerCase();
       final photoUrl = await _uploadImage(email);
+      final qrUrl = await _uploadQrImage(email);
 
       final functions = FirebaseFunctions.instanceFor(
         region: 'us-central1',
@@ -120,6 +146,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
         'categoryId': _selectedCategoryId,
         'categoryName': _selectedCategoryName,
         'photoUrl': photoUrl,
+        'qrImageUrl': qrUrl,
         'consultationPrice': int.parse(_priceController.text.trim()),
         'currency': 'PHP',
       });
@@ -191,6 +218,46 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                 child: _imageFile == null
                     ? const Icon(Icons.camera_alt,
                         color: kDarkBlue, size: 28)
+                    : null,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Center(
+            child: GestureDetector(
+              onTap: _pickQrImage,
+              child: Container(
+                height: 140,
+                width: 140,
+                decoration: BoxDecoration(
+                  color: kSoftBlue,
+                  borderRadius: BorderRadius.circular(16),
+                  image: _qrFile != null
+                      ? DecorationImage(
+                          image: FileImage(_qrFile!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _qrFile == null
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.qr_code, size: 28, color: kDarkBlue),
+                            SizedBox(height: 6),
+                            Text(
+                              'Upload GCash QR',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: kDarkBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : null,
               ),
             ),
