@@ -170,6 +170,8 @@ exports.adminCreateDoctor = onCall(
       categoryId,
       categoryName,
       photoUrl,
+      consultationPrice,
+      currency,
     } = request.data;
 
     await getFirestore().collection("doctors").add({
@@ -181,6 +183,9 @@ exports.adminCreateDoctor = onCall(
       categoryId,
       categoryName,
       photoUrl,
+
+      consultationPrice: consultationPrice,
+      currency: currency ?? "PHP",
 
       availability: {
         monday: [],
@@ -238,7 +243,7 @@ exports.adminDeleteUser = onCall(async (request) => {
 /* ============================
    APPOINTMENT STATUS NOTIFICATION
 ============================ */
-const db = admin.firestore(); // ✅ REQUIRED
+const db = getFirestore(); // ✅ REQUIRED
 
 exports.onAppointmentStatusChange = onDocumentUpdated(
   {

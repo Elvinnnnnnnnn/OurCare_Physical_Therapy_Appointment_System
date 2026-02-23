@@ -18,6 +18,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _aboutController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
 
   String? _selectedCategoryId;
   String? _selectedCategoryName;
@@ -88,10 +89,11 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   /// ======================
   Future<void> _saveDoctor() async {
     if (_nameController.text.trim().isEmpty ||
-        _experienceController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
-        _aboutController.text.trim().isEmpty ||
-        _selectedCategoryId == null) {
+      _experienceController.text.trim().isEmpty ||
+      _emailController.text.trim().isEmpty ||
+      _aboutController.text.trim().isEmpty ||
+      _priceController.text.trim().isEmpty ||
+      _selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete all fields')),
       );
@@ -118,6 +120,8 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
         'categoryId': _selectedCategoryId,
         'categoryName': _selectedCategoryName,
         'photoUrl': photoUrl,
+        'consultationPrice': int.parse(_priceController.text.trim()),
+        'currency': 'PHP',
       });
 
       if (!mounted) return;
@@ -158,6 +162,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
     _experienceController.dispose();
     _emailController.dispose();
     _aboutController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -208,8 +213,13 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
             controller: _experienceController,
             decoration: _input('Experience'),
           ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            decoration: _input('Consultation Price (PHP)'),
+          ),
           const SizedBox(height: 20),
-
           TextField(
             controller: _aboutController,
             maxLines: 4,

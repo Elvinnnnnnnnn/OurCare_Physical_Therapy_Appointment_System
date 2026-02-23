@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-
 import 'customer_home.dart';
 
 class DoctorDetailsScreen extends StatefulWidget {
@@ -133,10 +132,49 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     Navigator.pop(context);
   }
 
+  Future<void> startPayment() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  if (_selectedDay == null || _selectedTime == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select date & time')),
+    );
+    return;
+  }
+
+  final doctor = widget.doctorData;
+  final price = doctor['consultationPrice'] ?? 0;
+
+  final paymentRef =
+      await FirebaseFirestore.instance.collection('payments').add({
+    'userId': user.uid,
+    'doctorId': widget.doctorId,
+    'doctorName': doctor['name'],
+    'amount': price,
+    'currency': 'PHP',
+    'date':
+        '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
+    'time': _selectedTime,
+    'status': 'pending',
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PaymentScreen(paymentId: paymentRef.id),
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     final doctor = widget.doctorData;
     final rating = (doctor['averageRating'] ?? 0).toDouble();
+    final price = (doctor['consultationPrice'] ?? 0).toInt();
+    final currency = doctor['currency'] ?? 'PHP';
+
 
     final times = _selectedDay == null
         ? <String>[]
@@ -189,14 +227,27 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           ),
                         ),
                         Text(
-                          doctor['categoryName'],
-                          style: const TextStyle(color: kDarkBlue),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.star,
-                                color: Colors.orange, size: 16),
+                            doctor['categoryName'],
+                            style: const TextStyle(color: kDarkBlue),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+                            'Consultation Fee: ₱$price',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: kPrimaryBlue,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Row(
+                            children: [
+                              const Icon(Icons.star,
+                                  color: Colors.orange, size: 16),
+
                             const SizedBox(width: 4),
                             Text(
                               rating.toStringAsFixed(1),
@@ -285,7 +336,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: bookAppointment,
+                onPressed: startPayment,
                 child: const Text(
                   'Make an Appointment',
                   style: TextStyle(color: kWhite),

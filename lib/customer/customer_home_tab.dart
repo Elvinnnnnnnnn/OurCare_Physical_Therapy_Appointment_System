@@ -346,9 +346,12 @@ class _DoctorCard extends StatelessWidget {
     final data = doctor.data() as Map<String, dynamic>;
 
     final double averageRating =
-        (data['averageRating'] ?? 0).toDouble();
+      (data['averageRating'] ?? 0).toDouble();
     final int totalRatings =
-        (data['totalRatings'] ?? 0) as int;
+      (data['totalRatings'] ?? 0) as int;
+
+    final int price = (data['consultationPrice'] ?? 0).toInt();
+    final String currency = data['currency'] ?? 'PHP';
 
     final String? photoUrl = data['photoUrl'];
 
@@ -412,6 +415,16 @@ class _DoctorCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            Text(
+              '₱$price',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: kPrimaryBlue,
+                fontSize: 15,
+              ),
+            ),
+
+            const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 4),

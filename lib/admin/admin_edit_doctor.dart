@@ -25,6 +25,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   late TextEditingController nameCtrl;
   late TextEditingController expCtrl;
   late TextEditingController aboutCtrl;
+  late TextEditingController priceCtrl;
 
   bool isLoading = false;
   late bool activated;
@@ -40,16 +41,17 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   @override
-  void initState() {
-    super.initState();
-    nameCtrl =
-        TextEditingController(text: widget.doctorData['name']);
-    expCtrl =
-        TextEditingController(text: widget.doctorData['experience']);
-    aboutCtrl =
-        TextEditingController(text: widget.doctorData['aboutMe']);
-    activated = widget.doctorData['activated'] ?? false;
+    void initState() {
+      super.initState();
+      nameCtrl = TextEditingController(text: widget.doctorData['name']);
+      expCtrl = TextEditingController(text: widget.doctorData['experience']);
+      aboutCtrl = TextEditingController(text: widget.doctorData['aboutMe']);
+      priceCtrl = TextEditingController(
+        text: (widget.doctorData['consultationPrice'] ?? 0).toString(),
+      );
+      activated = widget.doctorData['activated'] ?? false;
   }
+
 
   /// ======================
   /// PICK PHOTO
@@ -95,7 +97,9 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       'experience': expCtrl.text.trim(),
       'aboutMe': aboutCtrl.text.trim(),
       'activated': activated,
-      'photoUrl': photoUrl, // ✅ NEW
+      'photoUrl': photoUrl,
+      'consultationPrice': int.tryParse(priceCtrl.text.trim()) ?? 0,
+      'currency': 'PHP',
     });
 
     setState(() => isLoading = false);
@@ -114,6 +118,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
     nameCtrl.dispose();
     expCtrl.dispose();
     aboutCtrl.dispose();
+    priceCtrl.dispose(); 
     super.dispose();
   }
 
@@ -214,6 +219,24 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                   'Experience',
                   style: TextStyle(fontSize: 12, color: kGreyText),
                 ),
+
+                const SizedBox(height: 16),
+
+                const Text(
+                  'Consultation Price (PHP)',
+                  style: TextStyle(fontSize: 12, color: kGreyText),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter price',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+
                 const SizedBox(height: 6),
                 TextField(
                   controller: expCtrl,
