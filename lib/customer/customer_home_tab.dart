@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'doctor_details_screen.dart';
 import 'category_doctors_screen.dart';
 import 'notifications_screen.dart';
+import 'package:intl/intl.dart';
 
 class CustomerHomeTab extends StatefulWidget {
   const CustomerHomeTab({super.key});
@@ -352,6 +353,7 @@ class _DoctorCard extends StatelessWidget {
 
     final int price = (data['consultationPrice'] ?? 0).toInt();
     final String currency = data['currency'] ?? 'PHP';
+    final formattedPrice = NumberFormat('#,###').format(price);
 
     final String? photoUrl = data['photoUrl'];
 
@@ -416,7 +418,7 @@ class _DoctorCard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '₱$price',
+              '₱$formattedPrice',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: kPrimaryBlue,

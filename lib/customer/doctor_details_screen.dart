@@ -177,6 +177,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final doctor = widget.doctorData;
     final rating = (doctor['averageRating'] ?? 0).toDouble();
     final price = (doctor['consultationPrice'] ?? 0).toInt();
+    final formattedPrice = NumberFormat('#,###').format(price);
     final currency = doctor['currency'] ?? 'PHP';
 
 
@@ -238,7 +239,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           const SizedBox(height: 6),
 
                           Text(
-                            'Consultation Fee: ₱$price',
+                            'Consultation Fee: ₱$formattedPrice',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: kPrimaryBlue,
