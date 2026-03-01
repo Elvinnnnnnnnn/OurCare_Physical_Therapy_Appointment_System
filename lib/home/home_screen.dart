@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../auth/welcome_screen.dart';
-import 'customer_home.dart';
-import 'doctor_home.dart';
-import 'admin_home.dart';
+import '../customer/customer_home.dart';
+import '../doctor/doctor_home.dart';
+import '../admin/admin_home_screen.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -44,7 +44,7 @@ class AuthGate extends StatelessWidget {
             if (role == 'doctor') {
               return const DoctorHome();
             } else if (role == 'admin') {
-              return const AdminHome();
+              return const AdminHomeScreen();
             } else {
               return const CustomerHome();
             }

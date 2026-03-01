@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:typed_data';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -14,7 +18,7 @@ class _DoctorAppointmentsScreenState
     extends State<DoctorAppointmentsScreen> {
   int selectedTab = 0;
 
-  final tabs = ['Pending', 'Approved', 'Cancelled'];
+  final tabs = ['Pending', 'Upcoming', 'Completed', 'Cancelled'];
 
   // 🎨 BRAND COLORS
   static const Color kWhite = Color(0xFFFFFFFF);
@@ -29,6 +33,7 @@ class _DoctorAppointmentsScreenState
   String getStatusFilter() {
     if (selectedTab == 0) return 'pending';
     if (selectedTab == 1) return 'approved';
+    if (selectedTab == 2) return 'completed';
     return 'cancelled';
   }
 
@@ -91,6 +96,12 @@ class _DoctorAppointmentsScreenState
           ),
         ),
         iconTheme: const IconThemeData(color: kDarkBlue),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: _printAppointmentsHistory,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -180,6 +191,144 @@ class _DoctorAppointmentsScreenState
       ),
     );
   }
+  Future<void> _printAppointmentsHistory() async {
+    if (doctorFirestoreId == null) return;
+
+    Query query = FirebaseFirestore.instance
+        .collection('appointments')
+        .where('doctorId', isEqualTo: doctorFirestoreId);
+
+    // If Completed tab → print all completed history
+    if (getStatusFilter() == 'completed') {
+      query = query.where('status', isEqualTo: 'completed');
+    } else {
+      // Otherwise → print only selected tab
+      query = query.where('status', isEqualTo: getStatusFilter());
+    }
+
+    final snapshot =
+        await query.orderBy('createdAt', descending: true).get();
+
+    await Printing.layoutPdf(
+      onLayout: (format) async {
+        return _generatePdf(snapshot.docs);
+      },
+    );
+  }
+
+  Future<Uint8List> _generatePdf(
+    List<QueryDocumentSnapshot> appointments) async {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: const pw.PageTheme(
+            margin: pw.EdgeInsets.all(32),
+          ),
+          build: (context) => [
+            pw.Container(
+              height: 6,
+              color: PdfColor.fromHex('#1562E2'),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Appointments Report',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Text(
+                  DateTime.now().toString().split(' ').first,
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Text(
+              'Status: ${getStatusFilter().toUpperCase()}',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text(
+              'Total: ${appointments.length}',
+              style: const pw.TextStyle(fontSize: 11),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Table(
+              border: pw.TableBorder.all(
+                color: PdfColors.grey300,
+                width: 0.5,
+              ),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),
+                1: const pw.FlexColumnWidth(2),
+                2: const pw.FlexColumnWidth(2),
+                3: const pw.FlexColumnWidth(2),
+              },
+              children: [
+                pw.TableRow(
+                  decoration:
+                      const pw.BoxDecoration(color: PdfColors.grey200),
+                  children: [
+                    _pdfHeader('Patient'),
+                    _pdfHeader('Date'),
+                    _pdfHeader('Time'),
+                    _pdfHeader('Status'),
+                  ],
+                ),
+                ...appointments.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+
+                  return pw.TableRow(
+                    children: [
+                      _pdfCell((data['patientName'] ?? '').toString()),
+                      _pdfCell((data['date'] ?? '').toString()),
+                      _pdfCell((data['time'] ?? '').toString()),
+                      _pdfCell((data['status'] ?? '').toString()),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      return pdf.save();
+    }
+
+    pw.Widget _pdfHeader(String text) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.all(8),
+        child: pw.Text(
+          text,
+          style: pw.TextStyle(
+            fontWeight: pw.FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
+    pw.Widget _pdfCell(String text) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.all(8),
+        child: pw.Text(
+          text,
+          style: const pw.TextStyle(fontSize: 11),
+        ),
+      );
+    }
 }
 
 /// ===============================
@@ -206,6 +355,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
   String statusText(String status) {
     if (status == 'approved') return 'Approved';
+    if (status == 'completed') return 'Completed';
     if (status == 'cancelled') return 'Cancelled';
     return 'Pending';
   }
@@ -405,30 +555,47 @@ class _DoctorAppointmentCard extends StatelessWidget {
         ],
 
         /// APPROVE / REJECT ONLY WHEN PENDING
-        if (status == 'pending' && paymentStatus == 'for_verification') ...[
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _updateStatus('cancelled'),
-                  child: const Text('Reject'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryBlue,
-                    foregroundColor: Colors.white,
+        /// APPROVE / REJECT ONLY WHEN PENDING
+          if (status == 'pending' && paymentStatus == 'for_verification') ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _updateStatus('cancelled'),
+                    child: const Text('Reject'),
                   ),
-                  onPressed: () => _updateStatus('approved'),
-                  child: const Text('Approve'),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => _updateStatus('approved'),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          /// 🔵 FINISH BUTTON WHEN APPROVED
+          if (status == 'approved') ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryBlue,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => _updateStatus('completed'),
+                child: const Text('Finish Session'),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
         ],
       ),
     );
@@ -471,7 +638,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
       updateData.addAll({
         'appointmentAt': Timestamp.fromDate(appointmentDateTime),
-        'reminderSent': false,
+        'reminderScheduled': false,
         'paymentStatus': 'approved',
       });
 
@@ -485,6 +652,12 @@ class _DoctorAppointmentCard extends StatelessWidget {
           'approvedAt': FieldValue.serverTimestamp(),
         });
       }
+    }
+    
+    if (newStatus == 'completed') {
+      updateData.addAll({
+        'completedAt': FieldValue.serverTimestamp(),
+      });
     }
 
     if (newStatus == 'cancelled') {

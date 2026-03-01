@@ -5,6 +5,8 @@ import 'doctor_details_screen.dart';
 import 'category_doctors_screen.dart';
 import 'notifications_screen.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
+import '../services/notification_service.dart';
 
 class CustomerHomeTab extends StatefulWidget {
   const CustomerHomeTab({super.key});
@@ -19,6 +21,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+  late StreamSubscription _appointmentListener;
 
   final TextEditingController _searchController =
       TextEditingController();
@@ -26,7 +29,52 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
   String _searchText = '';
 
   @override
+  void initState() {
+    super.initState();
+    _listenForApprovedAppointments();
+  }
+
+  void _listenForApprovedAppointments() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _appointmentListener = FirebaseFirestore.instance
+        .collection('appointments')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'approved')
+        .snapshots()
+        .listen((snapshot) async {
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+
+        if (data['appointmentAt'] == null) continue;
+        if (data['reminderScheduled'] == true) continue;
+
+        final Timestamp ts = data['appointmentAt'];
+        final DateTime appointmentDateTime = ts.toDate();
+
+        print("NOW: ${DateTime.now()}");
+        print("APPOINTMENT: $appointmentDateTime");
+
+        await NotificationService.scheduleAllReminders(
+          appointmentDateTime: appointmentDateTime,
+        );
+
+        await FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(doc.id)
+            .update({
+          'reminderScheduled': true,
+        });
+
+        print("Reminders scheduled on patient device");
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _appointmentListener.cancel();
     _searchController.dispose();
     super.dispose();
   }

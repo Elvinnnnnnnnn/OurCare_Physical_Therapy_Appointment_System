@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'customer_home.dart';
 import 'payment_screen.dart';
+import '../services/notification_service.dart';
 
 class DoctorDetailsScreen extends StatefulWidget {
   final String doctorId;
@@ -21,17 +22,9 @@ class DoctorDetailsScreen extends StatefulWidget {
 }
 
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
-  List<String> bookedTimes = [];
-
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   String? _selectedTime;
-
-  final List<String> fallbackTimes = [
-    '09:00 AM – 10:00 AM',
-    '12:00 PM – 01:00 PM',
-    '04:00 PM – 05:00 PM',
-  ];
 
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kSoftBlue = Color(0xFFB3EBF2);
@@ -40,8 +33,40 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
   Map<String, dynamic> get availability {
     final data = widget.doctorData['availability'];
+
     if (data == null || data is! Map) return {};
-    return Map<String, dynamic>.from(data);
+
+    final Map<String, dynamic> result = {};
+
+    data.forEach((day, value) {
+      if (value is List) {
+        result[day] = {
+          'enabled': true,
+          'slots': value.map((slot) {
+            final map = Map<String, dynamic>.from(slot);
+            return {
+              'start': map['start'],
+              'end': map['end'],
+              'active': true,
+            };
+          }).toList(),
+        };
+      } else if (value is Map) {
+        result[day] = {
+          'enabled': value['enabled'] ?? true,
+          'slots': (value['slots'] as List? ?? []).map((slot) {
+            final map = Map<String, dynamic>.from(slot);
+            return {
+              'start': map['start'],
+              'end': map['end'],
+              'active': map['active'] ?? true,
+            };
+          }).toList(),
+        };
+      }
+    });
+
+    return result;
   }
 
   String weekdayKey(DateTime day) {
@@ -49,27 +74,20 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   }
 
   List<String> availableRangesForDay(DateTime day) {
-    if (availability.isEmpty) return fallbackTimes;
+    if (availability.isEmpty) return [];
 
     final key = weekdayKey(day);
-    final rawSlots = availability[key];
+    final dayData = availability[key];
 
-    if (rawSlots == null || rawSlots is! List || rawSlots.isEmpty) {
-      return fallbackTimes;
-    }
+    if (dayData == null) return [];
+    if (dayData['enabled'] != true) return [];
 
-    final List<String> ranges = [];
+    final List slots = dayData['slots'] ?? [];
 
-    for (final rawSlot in rawSlots) {
-      final slot = Map<String, dynamic>.from(rawSlot);
-      final start = slot['start'];
-      final end = slot['end'];
-
-      if (start == null || end == null) continue;
-      ranges.add('$start – $end');
-    }
-
-    return ranges.isEmpty ? fallbackTimes : ranges;
+    return slots
+        .where((s) => s['active'] == true)
+        .map<String>((s) => '${s['start']} - ${s['end']}')
+        .toList();
   }
 
   Future<void> openChat() async {
@@ -96,43 +114,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     );
   }
 
-  Future<void> bookAppointment() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    if (_selectedDay == null || _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select date & time')),
-      );
-      return;
-    }
-
-    final userSnap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    await FirebaseFirestore.instance.collection('appointments').add({
-      'userId': user.uid,
-      'patientName': userSnap['fullName'],
-      'patientEmail': userSnap['email'],
-      'doctorId': widget.doctorId,
-      'doctorName': widget.doctorData['name'],
-      'categoryName': widget.doctorData['categoryName'],
-      'date':
-          '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
-      'time': _selectedTime,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment booked successfully')),
-    );
-
-    Navigator.pop(context);
-  }
-
   Future<void> startPayment() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -147,6 +128,29 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final doctor = widget.doctorData;
     final price = doctor['consultationPrice'] ?? 0;
 
+    final startTime = _selectedTime!.split(' - ').first;
+    final parsed = DateFormat('hh:mm a').parse(startTime);
+
+    final appointmentDateTime = DateTime(
+      _selectedDay!.year,
+      _selectedDay!.month,
+      _selectedDay!.day,
+      parsed.hour,
+      parsed.minute,
+    );
+
+    final alreadyBooked =
+    await isTimeBooked(_selectedDay!, _selectedTime!);
+
+    if (alreadyBooked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This time slot is already booked'),
+        ),
+      );
+      return;
+    }
+
     final paymentRef =
         await FirebaseFirestore.instance.collection('payments').add({
       'userId': user.uid,
@@ -158,6 +162,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       'date':
           '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
       'time': _selectedTime,
+      'dateTime': Timestamp.fromDate(appointmentDateTime),
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -172,14 +177,26 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     );
   }
 
+  Future<bool> isTimeBooked(DateTime day, String timeRange) async {
+    final dateString = '${day.year}-${day.month}-${day.day}';
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('appointments')
+        .where('doctorId', isEqualTo: widget.doctorId)
+        .where('date', isEqualTo: dateString)
+        .where('time', isEqualTo: timeRange)
+        .where('status', whereIn: ['pending', 'approved', 'completed'])
+        .get();
+
+    return snapshot.docs.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final doctor = widget.doctorData;
     final rating = (doctor['averageRating'] ?? 0).toDouble();
     final price = (doctor['consultationPrice'] ?? 0).toInt();
     final formattedPrice = NumberFormat('#,###').format(price);
-    final currency = doctor['currency'] ?? 'PHP';
-
 
     final times = _selectedDay == null
         ? <String>[]
@@ -201,7 +218,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// HEADER CARD
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -215,7 +231,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     backgroundColor: Colors.grey.shade200,
                     backgroundImage: doctor['photoUrl'] != null
                         ? NetworkImage(doctor['photoUrl'])
-                        : const AssetImage('assets/placeholder-400x400.jpg')
+                        : const AssetImage(
+                                'assets/placeholder-400x400.jpg')
                             as ImageProvider,
                   ),
                   const SizedBox(width: 14),
@@ -232,32 +249,30 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           ),
                         ),
                         Text(
-                            doctor['categoryName'],
-                            style: const TextStyle(color: kDarkBlue),
+                          doctor['categoryName'],
+                          style:
+                              const TextStyle(color: kDarkBlue),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Consultation Fee: ₱$formattedPrice',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: kPrimaryBlue,
                           ),
-
-                          const SizedBox(height: 6),
-
-                          Text(
-                            'Consultation Fee: ₱$formattedPrice',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: kPrimaryBlue,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          Row(
-                            children: [
-                              const Icon(Icons.star,
-                                  color: Colors.orange, size: 16),
-
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.star,
+                                color: Colors.orange,
+                                size: 16),
                             const SizedBox(width: 4),
                             Text(
                               rating.toStringAsFixed(1),
                               style: const TextStyle(
-                                  fontWeight: FontWeight.w600),
+                                  fontWeight:
+                                      FontWeight.w600),
                             ),
                           ],
                         ),
@@ -272,22 +287,32 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 24),
-
-            /// 📅 ONLY CHANGE IS HERE
             TableCalendar(
               firstDay: DateTime(2000),
               lastDay: DateTime(2100),
               focusedDay: _focusedDay,
               selectedDayPredicate: (day) =>
                   isSameDay(_selectedDay, day),
-              enabledDayPredicate: (day) {
-                if (availability.isEmpty) return true;
-                final key = weekdayKey(day);
-                final slots = availability[key];
-                return slots != null && slots.isNotEmpty;
+
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false, // 🔥 removes 2 weeks / month
+                titleCentered: true,
+              ),
+
+              availableCalendarFormats: const {
+                CalendarFormat.month: 'Month',
               },
+
+              calendarFormat: CalendarFormat.month,
+
+              enabledDayPredicate: (day) {
+                final key = weekdayKey(day);
+                final dayData = availability[key];
+                if (dayData == null) return false;
+                return dayData['enabled'] == true;
+              },
+
               onDaySelected: (day, focusedDay) {
                 setState(() {
                   _selectedDay = day;
@@ -296,49 +321,57 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 });
               },
             ),
-
             const SizedBox(height: 24),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: times.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 3,
+              ),
+              itemBuilder: (context, index) {
+              final time = times[index];
 
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: times.map((time) {
-                final selected = time == _selectedTime;
+              return FutureBuilder<bool>(
+                future: isTimeBooked(_selectedDay!, time),
+                builder: (context, snapshot) {
+                  final booked = snapshot.data ?? false;
+                  final selected = time == _selectedTime;
 
-                return ChoiceChip(
-                  label: Text(
-                    time,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                  return ChoiceChip(
+                    label: Text(
+                      booked ? '$time (Booked)' : time,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  selected: selected,
-                  selectedColor: kPrimaryBlue,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
-                  onSelected: (_) =>
-                      setState(() => _selectedTime = time),
-                );
-              }).toList(),
+                    selected: selected,
+                    selectedColor: kPrimaryBlue,
+                    disabledColor: Colors.grey.shade300,
+                    onSelected: booked
+                        ? null
+                        : (_) => setState(() => _selectedTime = time),
+                  );
+                },
+              );
+            },
             ),
-
             const SizedBox(height: 30),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimaryBlue,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius:
+                        BorderRadius.circular(14),
                   ),
                 ),
                 onPressed: startPayment,

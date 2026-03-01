@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
 class AdminEditDoctorAvailability extends StatefulWidget {
   final String doctorId;
@@ -19,7 +18,6 @@ class AdminEditDoctorAvailability extends StatefulWidget {
 
 class _AdminEditDoctorAvailabilityState
     extends State<AdminEditDoctorAvailability> {
-  late Map<String, List<Map<String, String>>> _availability;
 
   final List<String> days = [
     'monday',
@@ -31,113 +29,67 @@ class _AdminEditDoctorAvailabilityState
     'sunday',
   ];
 
+  late Map<String, dynamic> _availability;
+
+  final List<Map<String, dynamic>> defaultSlots = [
+    {'start': '08:00 AM', 'end': '09:00 AM', 'active': true},
+    {'start': '10:00 AM', 'end': '11:00 AM', 'active': true},
+    {'start': '12:00 PM', 'end': '01:00 PM', 'active': true},
+    {'start': '02:00 PM', 'end': '03:00 PM', 'active': true},
+    {'start': '04:00 PM', 'end': '05:00 PM', 'active': true},
+  ];
+
   @override
   void initState() {
     super.initState();
+
     _availability = {};
 
     for (final day in days) {
-      final rawSlots = widget.availability[day];
+      final existing = widget.availability[day];
 
-      if (rawSlots == null || rawSlots is! List) {
-        _availability[day] = [];
-      } else {
-        _availability[day] = rawSlots.map<Map<String, String>>((slot) {
-          final map = Map<String, dynamic>.from(slot);
-          return {
-            'start': map['start']?.toString() ?? '',
-            'end': map['end']?.toString() ?? '',
-          };
-        }).toList();
+      // OLD FORMAT
+      if (existing is List) {
+        _availability[day] = {
+          'enabled': true,
+          'slots': existing.map((slot) {
+            final map = Map<String, dynamic>.from(slot);
+            return {
+              'start': map['start'],
+              'end': map['end'],
+              'active': true,
+            };
+          }).toList(),
+        };
+      }
+
+      // NEW FORMAT
+      else if (existing is Map) {
+        final List rawSlots = existing['slots'] ?? [];
+
+        _availability[day] = {
+          'enabled': existing['enabled'] ?? true,
+          'slots': rawSlots.isEmpty
+              ? List<Map<String, dynamic>>.from(defaultSlots)
+              : rawSlots.map((slot) {
+                  final map = Map<String, dynamic>.from(slot);
+                  return {
+                    'start': map['start'],
+                    'end': map['end'],
+                    'active': map['active'] ?? true,
+                  };
+                }).toList(),
+        };
+      }
+
+      // NO DATA
+      else {
+        _availability[day] = {
+          'enabled': true,
+          'slots': List<Map<String, dynamic>>.from(defaultSlots),
+        };
       }
     }
-  }
-
-  /// 🔒 OVERLAP CHECK (UNCHANGED)
-  bool _hasOverlap(
-    String day,
-    TimeOfDay newStart,
-    TimeOfDay newEnd,
-  ) {
-    int toMinutes(TimeOfDay t) => t.hour * 60 + t.minute;
-
-    final newStartMin = toMinutes(newStart);
-    final newEndMin = toMinutes(newEnd);
-
-    for (final slot in _availability[day]!) {
-      if (slot['start']!.isEmpty || slot['end']!.isEmpty) continue;
-
-      final start =
-          DateFormat('hh:mm a').parse(slot['start']!);
-      final end =
-          DateFormat('hh:mm a').parse(slot['end']!);
-
-      final startMin = start.hour * 60 + start.minute;
-      final endMin = end.hour * 60 + end.minute;
-
-      if (newStartMin < endMin && newEndMin > startMin) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  Future<void> _pickTime(
-    String day,
-    int index,
-    bool isStart,
-  ) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 0),
-    );
-
-    if (picked == null) return;
-
-    setState(() {
-      _availability[day]![index]
-          [isStart ? 'start' : 'end'] =
-          picked.format(context);
-    });
-  }
-
-  /// ➕ ADD TIME RANGE
-  Future<void> _addTimeRange(String day) async {
-    final start = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 8, minute: 0),
-    );
-    if (start == null) return;
-
-    final end = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 0),
-    );
-    if (end == null) return;
-
-    if (_hasOverlap(day, start, end)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Time overlaps with existing schedule'),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _availability[day]!.add({
-        'start': start.format(context),
-        'end': end.format(context),
-      });
-    });
-  }
-
-  /// ❌ DELETE TIME RANGE (NEW – SIMPLE & SAFE)
-  void _deleteTime(String day, int index) {
-    setState(() {
-      _availability[day]!.removeAt(index);
-    });
   }
 
   Future<void> _save() async {
@@ -152,13 +104,14 @@ class _AdminEditDoctorAvailabilityState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Availability'),
-      ),
+      appBar: AppBar(title: const Text('Edit Availability')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: days.map((day) {
-          final slots = _availability[day]!;
+          final dayData = _availability[day];
+          final bool enabled = dayData['enabled'] ?? true;
+          final List slots =
+              List<Map<String, dynamic>>.from(dayData['slots']);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -167,6 +120,7 @@ class _AdminEditDoctorAvailabilityState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   /// DAY HEADER
                   Row(
                     children: [
@@ -179,67 +133,37 @@ class _AdminEditDoctorAvailabilityState
                         ),
                       ),
                       Switch(
-                        value: slots.isNotEmpty,
+                        value: enabled,
                         onChanged: (value) {
                           setState(() {
-                            if (value) {
-                              // 🔑 TURN ON → ADD EMPTY SLOT
-                              if (slots.isEmpty) {
-                                slots.add({
-                                  'start': '',
-                                  'end': '',
-                                });
-                              }
-                            } else {
-                              // 🔑 TURN OFF → CLEAR
-                              slots.clear();
-                            }
+                            _availability[day]['enabled'] = value;
                           });
                         },
                       ),
                     ],
                   ),
 
-                  if (slots.isNotEmpty)
+                  if (enabled)
                     Column(
-                      children: [
-                        ...List.generate(slots.length, (i) {
-                          return Row(
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    _pickTime(day, i, true),
-                                child:
-                                    Text(slots[i]['start']!),
-                              ),
-                              const Text(' – '),
-                              TextButton(
-                                onPressed: () =>
-                                    _pickTime(day, i, false),
-                                child:
-                                    Text(slots[i]['end']!),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete,
-                                    color: Colors.red),
-                                onPressed: () =>
-                                    _deleteTime(day, i),
-                              ),
-                            ],
-                          );
-                        }),
-
-                        /// ➕ ADD TIME BUTTON
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Time'),
-                            onPressed: () =>
-                                _addTimeRange(day),
-                          ),
-                        ),
-                      ],
+                      children: slots.map((slot) {
+                        return Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${slot['start']} - ${slot['end']}',
+                            ),
+                            Switch(
+                              value: slot['active'] ?? true,
+                              onChanged: (value) {
+                                setState(() {
+                                  slot['active'] = value;
+                                });
+                              },
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
                 ],
               ),

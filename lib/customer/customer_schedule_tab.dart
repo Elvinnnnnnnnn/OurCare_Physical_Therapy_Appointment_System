@@ -21,10 +21,10 @@ class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
-  String getStatusFilter() {
-    if (selectedTab == 0) return 'pending';
-    if (selectedTab == 1) return 'approved';
-    return 'cancelled';
+  String? getStatusFilter() {
+    if (selectedTab == 1) return 'completed';
+    if (selectedTab == 2) return 'cancelled';
+    return null; // Upcoming
   }
 
   @override
@@ -94,7 +94,10 @@ class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
               stream: FirebaseFirestore.instance
                   .collection('appointments')
                   .where('userId', isEqualTo: user!.uid)
-                  .where('status', isEqualTo: getStatusFilter())
+                  .where('status',
+                    whereIn: selectedTab == 0
+                        ? ['pending', 'approved']
+                        : [getStatusFilter()])
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData ||
@@ -155,7 +158,8 @@ class AppointmentCard extends StatelessWidget {
   }
 
   String statusText(String status) {
-    if (status == 'approved') return 'Confirmed';
+    if (status == 'approved') return 'Ongoing';
+    if (status == 'completed') return 'Completed';
     if (status == 'cancelled') return 'Cancelled';
     return 'Pending';
   }
@@ -342,7 +346,7 @@ class AppointmentCard extends StatelessWidget {
           ],
 
           /// RATE DOCTOR
-          if (status == 'approved' && rating == null) ...[
+            if (status == 'completed' && rating == null) ...[
             const SizedBox(height: 10),
             OutlinedButton.icon(
               icon: const Icon(Icons.star, color: kPrimaryBlue),

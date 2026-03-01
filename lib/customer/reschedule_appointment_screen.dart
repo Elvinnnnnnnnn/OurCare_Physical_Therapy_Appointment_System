@@ -33,19 +33,12 @@ class _RescheduleAppointmentScreenState
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
-  final List<String> fallbackTimes = [
-    '09:00 AM – 10:00 AM',
-    '12:00 PM – 01:00 PM',
-    '04:00 PM – 05:00 PM',
-  ];
-
   @override
   void initState() {
     super.initState();
     loadDoctor();
   }
 
-  /// 🔥 LOAD DOCTOR DATA (SOURCE OF TRUTH)
   Future<void> loadDoctor() async {
     final doctorId = widget.appointmentData['doctorId'];
 
@@ -62,11 +55,42 @@ class _RescheduleAppointmentScreenState
     }
   }
 
-  /// 🔑 DOCTOR AVAILABILITY (SAME AS DoctorDetailsScreen)
   Map<String, dynamic> get availability {
     final data = doctorData['availability'];
+
     if (data == null || data is! Map) return {};
-    return Map<String, dynamic>.from(data);
+
+    final Map<String, dynamic> result = {};
+
+    data.forEach((day, value) {
+      if (value is List) {
+        result[day] = {
+          'enabled': true,
+          'slots': value.map((slot) {
+            final map = Map<String, dynamic>.from(slot);
+            return {
+              'start': map['start'],
+              'end': map['end'],
+              'active': true,
+            };
+          }).toList(),
+        };
+      } else if (value is Map) {
+        result[day] = {
+          'enabled': value['enabled'] ?? true,
+          'slots': (value['slots'] as List? ?? []).map((slot) {
+            final map = Map<String, dynamic>.from(slot);
+            return {
+              'start': map['start'],
+              'end': map['end'],
+              'active': map['active'] ?? true,
+            };
+          }).toList(),
+        };
+      }
+    });
+
+    return result;
   }
 
   String weekdayKey(DateTime day) {
@@ -74,29 +98,22 @@ class _RescheduleAppointmentScreenState
   }
 
   List<String> availableRangesForDay(DateTime day) {
-    if (availability.isEmpty) return fallbackTimes;
+    if (availability.isEmpty) return [];
 
     final key = weekdayKey(day);
-    final rawSlots = availability[key];
+    final dayData = availability[key];
 
-    if (rawSlots == null || rawSlots is! List || rawSlots.isEmpty) {
-      return fallbackTimes;
-    }
+    if (dayData == null) return [];
+    if (dayData['enabled'] != true) return [];
 
-    final List<String> ranges = [];
+    final List slots = dayData['slots'] ?? [];
 
-    for (final rawSlot in rawSlots) {
-      final slot = Map<String, dynamic>.from(rawSlot);
-      final start = slot['start'];
-      final end = slot['end'];
-      if (start == null || end == null) continue;
-      ranges.add('$start – $end');
-    }
-
-    return ranges.isEmpty ? fallbackTimes : ranges;
+    return slots
+        .where((s) => s['active'] == true)
+        .map<String>((s) => '${s['start']} - ${s['end']}')
+        .toList();
   }
 
-  /// 🔥 LOAD BOOKED TIMES
   Future<void> loadBookedTimes(DateTime day) async {
     final dateString = '${day.year}-${day.month}-${day.day}';
 
@@ -105,19 +122,21 @@ class _RescheduleAppointmentScreenState
         .where('doctorId',
             isEqualTo: widget.appointmentData['doctorId'])
         .where('date', isEqualTo: dateString)
+        .where('status', whereIn: ['pending', 'approved', 'completed'])
         .get();
 
     setState(() {
-      bookedTimes =
-          snapshot.docs.map((doc) => doc['time'] as String).toList();
+      bookedTimes = snapshot.docs
+          .where((doc) => doc.id != widget.appointmentId)
+          .map((doc) => doc['time'] as String)
+          .toList();
     });
   }
 
-  /// 🔄 RESCHEDULE
   Future<void> rescheduleAppointment() async {
     if (_selectedDay == null || _selectedTime == null) return;
 
-    final startTime = _selectedTime!.split(' – ').first;
+    final startTime = _selectedTime!.split(' - ').first;
     final parsed = DateFormat('hh:mm a').parse(startTime);
 
     final newDateTime = DateTime(
@@ -127,6 +146,15 @@ class _RescheduleAppointmentScreenState
       parsed.hour,
       parsed.minute,
     );
+
+    if (bookedTimes.contains(_selectedTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This time slot is already booked'),
+        ),
+      );
+      return;
+    }
 
     await FirebaseFirestore.instance
         .collection('appointments')
@@ -183,28 +211,39 @@ class _RescheduleAppointmentScreenState
             ),
             const SizedBox(height: 8),
 
-            /// 📅 CALENDAR (SAME RULES AS DOCTOR DETAILS)
             TableCalendar(
-              firstDay: DateTime.now(),
-              lastDay: DateTime.now().add(const Duration(days: 60)),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) =>
-                  isSameDay(_selectedDay, day),
-              enabledDayPredicate: (day) {
-                if (availability.isEmpty) return true;
-                final key = weekdayKey(day);
-                final slots = availability[key];
-                return slots != null && slots.isNotEmpty;
-              },
-              onDaySelected: (day, focusedDay) {
-                setState(() {
-                  _selectedDay = day;
-                  _focusedDay = focusedDay;
-                  _selectedTime = null;
-                });
-                loadBookedTimes(day);
-              },
+            firstDay: DateTime(2000),
+            lastDay: DateTime(2100),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) =>
+                isSameDay(_selectedDay, day),
+
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false, // 🔥 removes 2 weeks / month
+              titleCentered: true,
             ),
+
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Month',
+            },
+
+            calendarFormat: CalendarFormat.month,
+
+            enabledDayPredicate: (day) {
+              final key = weekdayKey(day);
+              final dayData = availability[key];
+              if (dayData == null) return false;
+              return dayData['enabled'] == true;
+            },
+
+            onDaySelected: (day, focusedDay) {
+              setState(() {
+                _selectedDay = day;
+                _focusedDay = focusedDay;
+                _selectedTime = null;
+              });
+            },
+          ),
 
             const SizedBox(height: 20),
 
@@ -215,26 +254,36 @@ class _RescheduleAppointmentScreenState
             ),
             const SizedBox(height: 10),
 
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: times.map((time) {
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: times.length,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 3,
+              ),
+              itemBuilder: (context, index) {
+                final time = times[index];
                 final isBooked = bookedTimes.contains(time);
                 final selected = time == _selectedTime;
 
                 return ChoiceChip(
-                  label: Text(time),
+                  label: Text(
+                    isBooked ? '$time (Booked)' : time,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   selected: selected,
                   selectedColor: kPrimaryBlue,
+                  disabledColor: Colors.grey.shade300,
                   onSelected: isBooked
                       ? null
-                      : (_) =>
-                          setState(() => _selectedTime = time),
-                  labelStyle: TextStyle(
-                    color: selected ? kWhite : kDarkBlue,
-                  ),
+                      : (_) => setState(() => _selectedTime = time),
                 );
-              }).toList(),
+              },
             ),
 
             const SizedBox(height: 30),

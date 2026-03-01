@@ -95,169 +95,92 @@ class CategoryDoctorsScreen extends StatelessWidget {
 
           /// 👨‍⚕️ DOCTORS LIST
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('doctors')
-                  .where('categoryName', isEqualTo: categoryName)
-                  .where('available', isEqualTo: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator());
-                }
+  child: StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('doctors')
+        .where('categoryName', isEqualTo: categoryName)
+        .where('activated', isEqualTo: true) // use this instead of 'available'
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      }
 
-                final doctors = snapshot.data!.docs;
+      final doctors = snapshot.data!.docs;
 
-                if (doctors.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No doctors in this service',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: doctors.length,
-                  itemBuilder: (context, index) {
-                    final doctor = doctors[index];
-                    final data =
-                        doctor.data() as Map<String, dynamic>;
-
-                    final double avgRating =
-                        (data['averageRating'] ?? 0).toDouble();
-                    final int totalRatings =
-                        (data['totalRatings'] ?? 0) as int;
-
-                    final String? photoUrl = data['photoUrl'];
-
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DoctorDetailsScreen(
-                              doctorId: doctor.id,
-                              doctorData: data,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kWhite,
-                          borderRadius:
-                              BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  Colors.black.withOpacity(0.06),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            /// 👤 DOCTOR PROFILE IMAGE
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: kSoftBlue,
-                              backgroundImage: photoUrl != null
-                                  ? NetworkImage(photoUrl)
-                                  : const AssetImage(
-                                          'assets/placeholder-400x400.jpg')
-                                      as ImageProvider,
-                            ),
-
-                            const SizedBox(width: 14),
-
-                            /// ℹ️ INFO
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    data['name'] ??
-                                        'Unknown Doctor',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight:
-                                          FontWeight.bold,
-                                      color: kDarkBlue,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    data['categoryName'] ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            /// ⭐ RATING
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.orange
-                                    .withOpacity(0.15),
-                                borderRadius:
-                                    BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Colors.orange,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    avgRating.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                        fontWeight:
-                                            FontWeight.w600),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '($totalRatings)',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(width: 6),
-
-                            const Icon(
-                              Icons.arrow_forward_ios,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+      if (doctors.isEmpty) {
+        return const Center(
+          child: Text(
+            'No doctors in this service',
+            style: TextStyle(color: Colors.grey),
           ),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: doctors.length,
+        itemBuilder: (context, index) {
+          final doctor = doctors[index];
+          final data = doctor.data() as Map<String, dynamic>;
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorDetailsScreen(
+                    doctorId: doctor.id,
+                    doctorData: data,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: data['photoUrl'] != null
+                        ? NetworkImage(data['photoUrl'])
+                        : null,
+                    child: data['photoUrl'] == null
+                        ? const Icon(Icons.person)
+                        : null,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      data['name'] ?? 'Unknown Doctor',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  ),
+)
         ],
       ),
     );
