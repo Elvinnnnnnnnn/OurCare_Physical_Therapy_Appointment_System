@@ -283,6 +283,55 @@ exports.onAppointmentStatusChange = onDocumentUpdated(
   }
 );
 
+const { getMessaging } = require("firebase-admin/messaging");
+
+/* ============================
+   PUSH: APPOINTMENT APPROVED
+============================ */
+exports.pushOnAppointmentApproved = onDocumentUpdated(
+  {
+    document: "appointments/{appointmentId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data.before?.data();
+    const after = event.data.after?.data();
+
+    if (!before || !after) return;
+
+    // Only trigger when status changes TO approved
+    if (before.status === after.status) return;
+    if (after.status !== "approved") return;
+
+    // Get patient FCM token
+    const userDoc = await db
+      .collection("users")
+      .doc(after.userId)
+      .get();
+
+    const token = userDoc.data()?.fcmToken;
+
+    if (!token) {
+      console.log("No FCM token found");
+      return;
+    }
+
+    await getMessaging().send({
+      token: token,
+      notification: {
+        title: "Appointment Approved",
+        body: `Dr. ${after.doctorName} approved your appointment on ${after.date} at ${after.time}.`,
+      },
+      data: {
+        type: "appointment_status",
+        appointmentId: event.params.appointmentId,
+      },
+    });
+
+    console.log("Push notification sent");
+  }
+);
+
 const { onSchedule } =
   require("firebase-functions/v2/scheduler");
 

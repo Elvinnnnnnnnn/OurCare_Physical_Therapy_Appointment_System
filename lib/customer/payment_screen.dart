@@ -15,6 +15,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   bool loading = false;
+  final TextEditingController _amountController = TextEditingController();
 
   File? _screenshotFile;
   final ImagePicker _picker = ImagePicker();
@@ -36,7 +37,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     paymentData = paymentDoc.data();
 
+    // ✅ AUTO FILL AMOUNT HERE
     if (paymentData != null) {
+      _amountController.text =
+          paymentData?['amount']?.toString() ?? '';
+
       final doctorDoc = await FirebaseFirestore.instance
           .collection('doctors')
           .doc(paymentData!['doctorId'])
@@ -74,79 +79,94 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> confirmPayment() async {
-    if (_screenshotFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload screenshot')),
-      );
-      return;
-    }
-
-    setState(() => loading = true);
-
-    final paymentDoc = await FirebaseFirestore.instance
-        .collection('payments')
-        .doc(widget.paymentId)
-        .get();
-
-    final data = paymentDoc.data();
-    if (data == null) return;
-
-    // 🔹 Upload screenshot to Firebase Storage
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('payment_screenshots')
-        .child('${widget.paymentId}.jpg');
-
-    await ref.putFile(_screenshotFile!);
-    final screenshotUrl = await ref.getDownloadURL();
-
-    // 🔹 Get patient info
-    final userSnap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(data['userId'])
-        .get();
-
-    final userData = userSnap.data();
-
-    // 🔹 Update payment with screenshot + status
-    await FirebaseFirestore.instance
-        .collection('payments')
-        .doc(widget.paymentId)
-        .update({
-      'status': 'for_verification',
-      'submittedAt': FieldValue.serverTimestamp(),
-      'screenshotUrl': screenshotUrl,
-    });
-
-    // 🔹 Create appointment
-    await FirebaseFirestore.instance.collection('appointments').add({
-      'userId': data['userId'],
-      'patientName': userData?['fullName'] ?? 'Unknown',
-      'patientEmail': userData?['email'] ?? '',
-      'doctorId': data['doctorId'],
-      'doctorName': data['doctorName'],
-      'categoryName': data['categoryName'],
-      'amountPaid': data['amount'],
-      'currency': data['currency'],
-      'date': data['date'],
-      'time': data['time'],
-      'status': 'pending',
-      'paymentStatus': 'for_verification',
-      'paymentId': widget.paymentId,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    setState(() => loading = false);
-
-    if (!mounted) return;
-
+  if (_amountController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment submitted')),
+      const SnackBar(content: Text('Please enter amount')),
     );
-
-    Navigator.pop(context);
-    Navigator.pop(context);
+    return;
   }
+
+  final double enteredAmount =
+      double.tryParse(_amountController.text) ?? 0;
+
+  if (enteredAmount <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid amount')),
+    );
+    return;
+  }
+
+  if (_screenshotFile == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please upload screenshot')),
+    );
+    return;
+  }
+
+  setState(() => loading = true);
+
+  final paymentDoc = await FirebaseFirestore.instance
+      .collection('payments')
+      .doc(widget.paymentId)
+      .get();
+
+  final data = paymentDoc.data();
+  if (data == null) {
+    setState(() => loading = false);
+    return;
+  }
+
+  final screenshotUrl = await uploadScreenshot();
+  if (screenshotUrl == null) {
+    setState(() => loading = false);
+    return;
+  }
+
+  final userSnap = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(data['userId'])
+      .get();
+
+  final userData = userSnap.data();
+
+  await FirebaseFirestore.instance
+      .collection('payments')
+      .doc(widget.paymentId)
+      .update({
+    'status': 'for_verification',
+    'submittedAt': FieldValue.serverTimestamp(),
+    'screenshotUrl': screenshotUrl,
+    'amountPaid': enteredAmount,
+  });
+
+  await FirebaseFirestore.instance.collection('appointments').add({
+    'userId': data['userId'],
+    'patientName': userData?['fullName'] ?? 'Unknown',
+    'patientEmail': userData?['email'] ?? '',
+    'doctorId': data['doctorId'],
+    'doctorName': data['doctorName'],
+    'categoryName': data['categoryName'],
+    'amountPaid': enteredAmount,
+    'currency': data['currency'],
+    'date': data['date'],
+    'time': data['time'],
+    'status': 'pending',
+    'paymentStatus': 'for_verification',
+    'paymentId': widget.paymentId,
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+
+  setState(() => loading = false);
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Payment submitted')),
+  );
+
+  Navigator.pop(context);
+  Navigator.pop(context);
+}
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +201,45 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Enter Amount to Pay",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _amountController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: "Enter amount",
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: Colors.white12,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

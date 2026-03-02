@@ -39,8 +39,23 @@ class NotificationService {
     final reminders = [
       {
         "id": baseId + 1,
-        "time": appointmentDateTime.subtract(const Duration(minutes: 1)),
-        "label": "1 minute"
+        "time": appointmentDateTime.subtract(const Duration(days: 5)),
+        "label": "5 days"
+      },
+      {
+        "id": baseId + 2,
+        "time": appointmentDateTime.subtract(const Duration(hours: 24)),
+        "label": "24 hours"
+      },
+      {
+        "id": baseId + 3,
+        "time": appointmentDateTime.subtract(const Duration(hours: 1)),
+        "label": "1 hour"
+      },
+      {
+        "id": baseId + 4,
+        "time": appointmentDateTime.subtract(const Duration(minutes: 10)),
+        "label": "10 minutes"
       },
     ];
 

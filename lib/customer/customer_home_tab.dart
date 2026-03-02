@@ -7,6 +7,7 @@ import 'notifications_screen.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class CustomerHomeTab extends StatefulWidget {
   const CustomerHomeTab({super.key});
@@ -28,10 +29,42 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
 
   String _searchText = '';
 
-  @override
+  
+  Future<void> _saveFcmToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update({
+      'fcmToken': token,
+    });
+
+    print("FCM TOKEN SAVED: $token");
+  }
+
+ @override
   void initState() {
     super.initState();
+
+    _saveFcmToken();
     _listenForApprovedAppointments();
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'fcmToken': newToken,
+        });
+      }
+    });
   }
 
   void _listenForApprovedAppointments() {
@@ -298,7 +331,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
-                        childAspectRatio: 0.74,
+                        childAspectRatio: 0.70,
                       ),
                       itemBuilder: (context, index) {
                         return _DoctorCard(

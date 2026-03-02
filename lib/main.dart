@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'home/auth_gate.dart';
 import 'services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,8 +12,13 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await FirebaseMessaging.instance.requestPermission();
+
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  print("FCM TOKEN: $fcmToken");
+
   await NotificationService.init();
-  await NotificationService.requestPermissions(); // add this line
+  await NotificationService.requestPermissions();
 
   runApp(const MyApp());
 }

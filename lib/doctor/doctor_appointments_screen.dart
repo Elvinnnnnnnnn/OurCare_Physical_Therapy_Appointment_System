@@ -6,6 +6,14 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+enum ReportRange {
+    today,
+    week,
+    month,
+    year,
+    all,
+  }
+
 class DoctorAppointmentsScreen extends StatefulWidget {
   const DoctorAppointmentsScreen({super.key});
 
@@ -19,6 +27,8 @@ class _DoctorAppointmentsScreenState
   int selectedTab = 0;
 
   final tabs = ['Pending', 'Upcoming', 'Completed', 'Cancelled'];
+
+  ReportRange selectedRange = ReportRange.all;
 
   // 🎨 BRAND COLORS
   static const Color kWhite = Color(0xFFFFFFFF);
@@ -68,6 +78,59 @@ class _DoctorAppointmentsScreenState
     }
   }
 
+  Future<void> _showPrintOptions() async {
+  showModalBottomSheet(
+    context: context,
+    builder: (_) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text('Today'),
+            onTap: () {
+              selectedRange = ReportRange.today;
+              Navigator.pop(context);
+              _printAppointmentsHistory();
+            },
+          ),
+          ListTile(
+            title: const Text('This Week'),
+            onTap: () {
+              selectedRange = ReportRange.week;
+              Navigator.pop(context);
+              _printAppointmentsHistory();
+            },
+          ),
+          ListTile(
+            title: const Text('This Month'),
+            onTap: () {
+              selectedRange = ReportRange.month;
+              Navigator.pop(context);
+              _printAppointmentsHistory();
+            },
+          ),
+          ListTile(
+            title: const Text('This Year'),
+            onTap: () {
+              selectedRange = ReportRange.year;
+              Navigator.pop(context);
+              _printAppointmentsHistory();
+            },
+          ),
+          ListTile(
+            title: const Text('All'),
+            onTap: () {
+              selectedRange = ReportRange.all;
+              Navigator.pop(context);
+              _printAppointmentsHistory();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     if (isLoadingDoctor) {
@@ -99,7 +162,7 @@ class _DoctorAppointmentsScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.print),
-            onPressed: _printAppointmentsHistory,
+            onPressed: _showPrintOptions,
           ),
         ],
       ),
@@ -191,31 +254,67 @@ class _DoctorAppointmentsScreenState
       ),
     );
   }
+
   Future<void> _printAppointmentsHistory() async {
-    if (doctorFirestoreId == null) return;
+  if (doctorFirestoreId == null) return;
 
-    Query query = FirebaseFirestore.instance
-        .collection('appointments')
-        .where('doctorId', isEqualTo: doctorFirestoreId);
+  Query query = FirebaseFirestore.instance
+      .collection('appointments')
+      .where('doctorId', isEqualTo: doctorFirestoreId)
+      .where('status', isEqualTo: getStatusFilter());
 
-    // If Completed tab → print all completed history
-    if (getStatusFilter() == 'completed') {
-      query = query.where('status', isEqualTo: 'completed');
-    } else {
-      // Otherwise → print only selected tab
-      query = query.where('status', isEqualTo: getStatusFilter());
-    }
+  DateTime now = DateTime.now();
+  DateTime start;
+  DateTime end;
 
-    final snapshot =
-        await query.orderBy('createdAt', descending: true).get();
+  switch (selectedRange) {
+    case ReportRange.today:
+      start = DateTime(now.year, now.month, now.day);
+      end = start.add(const Duration(days: 1));
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('createdAt', isLessThan: Timestamp.fromDate(end));
+      break;
 
-    await Printing.layoutPdf(
-      onLayout: (format) async {
-        return _generatePdf(snapshot.docs);
-      },
-    );
+    case ReportRange.week:
+      int weekday = now.weekday;
+      start = now.subtract(Duration(days: weekday - 1));
+      start = DateTime(start.year, start.month, start.day);
+      end = start.add(const Duration(days: 7));
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('createdAt', isLessThan: Timestamp.fromDate(end));
+      break;
+
+    case ReportRange.month:
+      start = DateTime(now.year, now.month, 1);
+      end = DateTime(now.year, now.month + 1, 1);
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('createdAt', isLessThan: Timestamp.fromDate(end));
+      break;
+
+    case ReportRange.year:
+      start = DateTime(now.year, 1, 1);
+      end = DateTime(now.year + 1, 1, 1);
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('createdAt', isLessThan: Timestamp.fromDate(end));
+      break;
+
+    case ReportRange.all:
+      break;
   }
 
+  final snapshot =
+      await query.orderBy('createdAt', descending: true).get();
+
+  await Printing.layoutPdf(
+    onLayout: (format) async {
+      return _generatePdf(snapshot.docs);
+    },
+  );
+}
   Future<Uint8List> _generatePdf(
     List<QueryDocumentSnapshot> appointments) async {
       final pdf = pw.Document();
@@ -274,6 +373,7 @@ class _DoctorAppointmentsScreenState
                 1: const pw.FlexColumnWidth(2),
                 2: const pw.FlexColumnWidth(2),
                 3: const pw.FlexColumnWidth(2),
+                4: const pw.FlexColumnWidth(2),
               },
               children: [
                 pw.TableRow(
@@ -284,6 +384,7 @@ class _DoctorAppointmentsScreenState
                     _pdfHeader('Date'),
                     _pdfHeader('Time'),
                     _pdfHeader('Status'),
+                    _pdfHeader('Amount Paid'),
                   ],
                 ),
                 ...appointments.map((doc) {
@@ -295,6 +396,7 @@ class _DoctorAppointmentsScreenState
                       _pdfCell((data['date'] ?? '').toString()),
                       _pdfCell((data['time'] ?? '').toString()),
                       _pdfCell((data['status'] ?? '').toString()),
+                      _pdfCell((data['amountPaid'] ?? '').toString()),
                     ],
                   );
                 }).toList(),
@@ -369,7 +471,18 @@ class _DoctorAppointmentCard extends StatelessWidget {
     final String patientId =
       (appointment['userId'] ?? '').toString();
 
-    return Container(
+    return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AppointmentDetailsScreen(
+            appointment: appointment,
+          ),
+        ),
+      );
+    },
+  child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -598,9 +711,9 @@ class _DoctorAppointmentCard extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-
+    ),
+  );
+}
     Future<void> _updateStatus(String newStatus) async {
     final Map<String, dynamic> updateData = {
       'status': newStatus,
@@ -706,6 +819,187 @@ class _DoctorAppointmentCard extends StatelessWidget {
         child: InteractiveViewer(
           child: Image.network(imageUrl),
         ),
+      ),
+    );
+  }
+}
+
+class AppointmentDetailsScreen extends StatelessWidget {
+  final Map<String, dynamic> appointment;
+
+  const AppointmentDetailsScreen({
+    super.key,
+    required this.appointment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String patientName =
+        (appointment['patientName'] ?? 'Unknown').toString();
+    final String amountPaid =
+      (appointment['amountPaid'] ?? '').toString();
+    final String category =
+        (appointment['categoryName'] ?? '').toString();
+    final String date =
+        (appointment['date'] ?? '').toString();
+    final String time =
+        (appointment['time'] ?? '').toString();
+    final String status =
+        (appointment['status'] ?? '').toString();
+    final String doctorId =
+        (appointment['doctorId'] ?? '').toString();
+    final String paymentStatus =
+        (appointment['paymentStatus'] ?? '').toString();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Appointment Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: () => _printDetails(),
+          )
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            _sectionTitle('Patient Information'),
+            _infoCard([
+              _infoRow('Patient Name', patientName),
+              _infoRow('Amount Paid', amountPaid),
+              _infoRow('Doctor ID', doctorId),
+            ]),
+
+            const SizedBox(height: 20),
+
+            _sectionTitle('Appointment Information'),
+            _infoCard([
+              _infoRow('Category', category),
+              _infoRow('Date', date),
+              _infoRow('Time', time),
+              _infoRow('Status', status),
+              _infoRow('Payment Status', paymentStatus),
+            ]),
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(List<Widget> children) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printDetails() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Text(
+            'Appointment Details',
+            style: pw.TextStyle(
+              fontSize: 22,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 20),
+
+          _pdfRow('Patient Name', appointment['patientName'] ?? ''),
+          _pdfRow('Amount Paid', appointment['amountPaid'] ?? ''),
+          _pdfRow('Doctor ID', appointment['doctorId'] ?? ''),
+          _pdfRow('Category', appointment['categoryName'] ?? ''),
+          _pdfRow('Date', appointment['date'] ?? ''),
+          _pdfRow('Time', appointment['time'] ?? ''),
+          _pdfRow('Status', appointment['status'] ?? ''),
+          _pdfRow('Payment Status', appointment['paymentStatus'] ?? ''),
+
+          pw.SizedBox(height: 30),
+          pw.Text(
+            'Generated on ${DateTime.now().toString().split(" ").first}',
+            style: const pw.TextStyle(fontSize: 10),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+    );
+  }
+
+  pw.Widget _pdfRow(String label, dynamic value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            flex: 2,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(
+            flex: 3,
+            child: pw.Text(value.toString()),
+          ),
+        ],
       ),
     );
   }
