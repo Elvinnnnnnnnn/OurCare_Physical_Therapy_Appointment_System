@@ -84,13 +84,31 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('doctors')
-                  .doc(doctorId)
-                  .update({field: controller.text.trim()});
-              if (mounted) Navigator.pop(context);
-              setState(() {});
-            },
+            final newValue = controller.text.trim();
+
+            // Update doctors collection
+            await FirebaseFirestore.instance
+                .collection('doctors')
+                .doc(doctorId)
+                .update({field: newValue});
+
+            // If editing name, also update users collection
+            if (field == 'name') {
+              final currentUser = FirebaseAuth.instance.currentUser;
+
+              if (currentUser != null) {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUser.uid)
+                    .update({
+                  'fullName': newValue,
+                });
+              }
+            }
+
+            if (mounted) Navigator.pop(context);
+            setState(() {});
+          },
             child: const Text('Save'),
           ),
         ],

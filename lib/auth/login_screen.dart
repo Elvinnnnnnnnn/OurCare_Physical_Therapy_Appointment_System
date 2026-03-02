@@ -103,6 +103,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your email first')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance
+          .sendPasswordResetEmail(email: email);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset link sent to your email'),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(e.message ?? 'Failed to send reset email'),
+        ),
+      );
+    }
+  }
+
   InputDecoration _input(String label) {
     return InputDecoration(
       labelText: label,
@@ -187,6 +216,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
                           return null;
                         },
+                      ),
+
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _forgotPassword,
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: kPrimaryBlue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 28),

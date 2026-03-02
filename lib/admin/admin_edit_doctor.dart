@@ -120,6 +120,15 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       'qrImageUrl': qrUrl,
     });
 
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.doctorData['userId'])
+        .update({
+      'fullName': nameCtrl.text.trim(),
+    });
+
+    print('Updating users doc: ${widget.doctorData['userId']}');
+
     setState(() => isLoading = false);
 
     if (!mounted) return;
