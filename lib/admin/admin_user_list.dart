@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-/// 🎨 BRAND COLORS (GLOBAL)
 const Color kWhite = Color(0xFFFFFFFF);
 const Color kPrimaryBlue = Color(0xFF1562E2);
 const Color kDarkBlue = Color(0xFF001C99);
@@ -22,9 +21,6 @@ class AdminUserList extends StatelessWidget {
     return Scaffold(
       backgroundColor: kWhite,
       appBar: AppBar(
-        backgroundColor: kWhite,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: kDarkBlue),
         title: Text(
           '${role[0].toUpperCase()}${role.substring(1)} Accounts',
           style: const TextStyle(
@@ -32,15 +28,24 @@ class AdminUserList extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+        backgroundColor: kWhite,
+        elevation: 0.6,
+        iconTheme: const IconThemeData(color: kDarkBlue),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
               .where('role', isEqualTo: role)
               .snapshots(),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text('Error loading users'),
+              );
+            }
+
             if (!snapshot.hasData) {
               return const Center(
                 child: CircularProgressIndicator(),
@@ -58,10 +63,10 @@ class AdminUserList extends StatelessWidget {
             return ListView.separated(
               itemCount: users.length,
               separatorBuilder: (_, __) =>
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final doc = users[index];
-                final data = doc.data() as Map<String, dynamic>;
+                final data = (doc.data() ?? {}) as Map<String, dynamic>;
 
                 return _UserCard(
                   userId: doc.id,
@@ -77,9 +82,6 @@ class AdminUserList extends StatelessWidget {
   }
 }
 
-/// ======================
-/// USER CARD (ALL ROLES)
-/// ======================
 class _UserCard extends StatelessWidget {
   final String userId;
   final String role;
@@ -91,6 +93,11 @@ class _UserCard extends StatelessWidget {
     required this.data,
   });
 
+  String _getInitial(String name) {
+    if (name.trim().isEmpty) return 'D';
+    return name.trim()[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -99,29 +106,28 @@ class _UserCard extends StatelessWidget {
     final String fullName = data['fullName'] ?? 'No name';
     final String email = data['email'] ?? '';
     final bool isDisabled = data['disabled'] == true;
-    final String? userPhotoUrl = data['photoUrl']; // customers/admins
+    final String? userPhotoUrl = data['photoUrl'];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: kWhite,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Row(
         children: [
-          /// 👤 PROFILE PHOTO (ALL ROLES)
           _buildAvatar(fullName, userPhotoUrl),
 
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
 
-          /// USER INFO
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,11 +135,14 @@ class _UserCard extends StatelessWidget {
                 Text(
                   fullName,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: kDarkBlue,
                   ),
                 ),
-                const SizedBox(height: 2),
+
+                const SizedBox(height: 4),
+
                 Text(
                   email,
                   style: const TextStyle(
@@ -141,7 +150,8 @@ class _UserCard extends StatelessWidget {
                     color: Colors.black54,
                   ),
                 ),
-                const SizedBox(height: 6),
+
+                const SizedBox(height: 8),
 
                 Row(
                   children: [
@@ -157,7 +167,6 @@ class _UserCard extends StatelessWidget {
             ),
           ),
 
-          /// MENU
           PopupMenuButton<String>(
             onSelected: isSelf
                 ? null
@@ -169,13 +178,22 @@ class _UserCard extends StatelessWidget {
                       _confirmDelete(context, userId, role);
                     }
                   },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             itemBuilder: (context) => isSelf
                 ? const []
                 : const [
-                    PopupMenuItem(value: 'toggle', child: Text('Enable / Disable')),
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text('Enable / Disable'),
+                    ),
                     PopupMenuItem(
                       value: 'delete',
-                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ],
           ),
@@ -184,12 +202,10 @@ class _UserCard extends StatelessWidget {
     );
   }
 
-  /// 🔥 AVATAR LOGIC (THIS IS THE FIX)
   Widget _buildAvatar(String fullName, String? userPhotoUrl) {
-    // ✅ CUSTOMER / ADMIN (photo in users)
     if (role != 'doctor') {
       return CircleAvatar(
-        radius: 26,
+        radius: 28,
         backgroundColor: kSoftBlue,
         backgroundImage:
             userPhotoUrl != null ? NetworkImage(userPhotoUrl) : null,
@@ -206,7 +222,6 @@ class _UserCard extends StatelessWidget {
       );
     }
 
-    // 👨‍⚕️ DOCTOR (photo from doctors collection)
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
           .collection('doctors')
@@ -217,17 +232,22 @@ class _UserCard extends StatelessWidget {
         String? doctorPhoto;
 
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          doctorPhoto = snapshot.data!.docs.first['photoUrl'];
+          final doctorData =
+              snapshot.data!.docs.first.data() as Map<String, dynamic>;
+
+          doctorPhoto = doctorData['photoUrl'] as String?;
         }
 
         return CircleAvatar(
-          radius: 26,
+          radius: 28,
           backgroundColor: kSoftBlue,
           backgroundImage:
-              doctorPhoto != null ? NetworkImage(doctorPhoto) : null,
-          child: doctorPhoto == null
+              (doctorPhoto != null && doctorPhoto.isNotEmpty)
+                  ? NetworkImage(doctorPhoto)
+                  : null,
+          child: (doctorPhoto == null || doctorPhoto.isEmpty)
               ? Text(
-                  fullName.substring(0, 1).toUpperCase(),
+                  _getInitial(fullName),
                   style: const TextStyle(
                     color: kDarkBlue,
                     fontWeight: FontWeight.bold,
@@ -242,9 +262,12 @@ class _UserCard extends StatelessWidget {
 
   Widget _badge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withOpacity(.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -268,23 +291,52 @@ class _UserCard extends StatelessWidget {
   void _confirmDelete(BuildContext context, String userId, String role) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
         title: const Text('Delete Account'),
         content: Text(
           'This will remove the $role profile.\n\nLogin account will NOT be deleted.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
             onPressed: () async {
-              await FirebaseFunctions.instanceFor(region: 'us-central1')
-                .httpsCallable('adminDeleteUser')
-                .call({'uid': userId});
-              Navigator.pop(context);
+
+              Navigator.pop(dialogContext);
+
+              try {
+                await FirebaseFunctions.instanceFor(
+                  region: 'us-central1',
+                )
+                    .httpsCallable('adminDeleteUser')
+                    .call({'uid': userId});
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('User deleted successfully'),
+                    ),
+                  );
+                }
+
+              } catch (e) {
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Delete failed: $e'),
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete'),
           ),

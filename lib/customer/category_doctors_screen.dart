@@ -3,18 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'doctor_details_screen.dart';
 
 class CategoryDoctorsScreen extends StatelessWidget {
+
+  final String categoryId;
   final String categoryName;
   final String description;
   final String? imageUrl;
 
   const CategoryDoctorsScreen({
     super.key,
+    required this.categoryId,
     required this.categoryName,
     required this.description,
     required this.imageUrl,
   });
 
-  // Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
@@ -26,7 +28,6 @@ class CategoryDoctorsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: kWhite,
 
-      /// APP BAR
       appBar: AppBar(
         backgroundColor: kWhite,
         elevation: 0,
@@ -40,10 +41,10 @@ class CategoryDoctorsScreen extends StatelessWidget {
         ),
       ),
 
-      /// BODY
       body: Column(
         children: [
-          /// 🧩 CATEGORY HEADER
+
+          /// CATEGORY HEADER
           Container(
             margin: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             padding: const EdgeInsets.all(16),
@@ -53,21 +54,27 @@ class CategoryDoctorsScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
+
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: kSoftBlue,
                   backgroundImage:
                       imageUrl != null ? NetworkImage(imageUrl!) : null,
                   child: imageUrl == null
-                      ? const Icon(Icons.medical_services,
-                          color: kPrimaryBlue)
+                      ? const Icon(
+                          Icons.medical_services,
+                          color: kPrimaryBlue,
+                        )
                       : null,
                 ),
+
                 const SizedBox(width: 14),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+
                       Text(
                         categoryName,
                         style: const TextStyle(
@@ -76,7 +83,9 @@ class CategoryDoctorsScreen extends StatelessWidget {
                           color: kDarkBlue,
                         ),
                       ),
+
                       const SizedBox(height: 6),
+
                       Text(
                         description.isNotEmpty
                             ? description
@@ -86,6 +95,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
                           color: kGreyText,
                         ),
                       ),
+
                     ],
                   ),
                 ),
@@ -93,94 +103,102 @@ class CategoryDoctorsScreen extends StatelessWidget {
             ),
           ),
 
-          /// 👨‍⚕️ DOCTORS LIST
+          /// DOCTORS LIST
           Expanded(
-  child: StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('doctors')
-        .where('categoryName', isEqualTo: categoryName)
-        .where('activated', isEqualTo: true) // use this instead of 'available'
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (!snapshot.hasData) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      }
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('doctors')
+                  .where('categoryIds', arrayContains: categoryId)
+                  .where('activated', isEqualTo: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
 
-      final doctors = snapshot.data!.docs;
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
 
-      if (doctors.isEmpty) {
-        return const Center(
-          child: Text(
-            'No doctors in this service',
-            style: TextStyle(color: Colors.grey),
-          ),
-        );
-      }
+                final doctors = snapshot.data!.docs;
 
-      return ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: doctors.length,
-        itemBuilder: (context, index) {
-          final doctor = doctors[index];
-          final data = doctor.data() as Map<String, dynamic>;
-
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DoctorDetailsScreen(
-                    doctorId: doctor.id,
-                    doctorData: data,
-                  ),
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: data['photoUrl'] != null
-                        ? NetworkImage(data['photoUrl'])
-                        : null,
-                    child: data['photoUrl'] == null
-                        ? const Icon(Icons.person)
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
+                if (doctors.isEmpty) {
+                  return const Center(
                     child: Text(
-                      data['name'] ?? 'Unknown Doctor',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'No doctors in this service',
+                      style: TextStyle(color: Colors.grey),
                     ),
-                  ),
-                ],
-              ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: doctors.length,
+                  itemBuilder: (context, index) {
+
+                    final doctor = doctors[index];
+                    final data = doctor.data() as Map<String, dynamic>;
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DoctorDetailsScreen(
+                              doctorId: doctor.id,
+                              doctorData: data,
+                            ),
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+
+                        child: Row(
+                          children: [
+
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundImage: data['photoUrl'] != null
+                                  ? NetworkImage(data['photoUrl'])
+                                  : null,
+                              child: data['photoUrl'] == null
+                                  ? const Icon(Icons.person)
+                                  : null,
+                            ),
+
+                            const SizedBox(width: 14),
+
+                            Expanded(
+                              child: Text(
+                                data['name'] ?? 'Unknown Doctor',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          );
-        },
-      );
-    },
-  ),
-)
+          )
         ],
       ),
     );

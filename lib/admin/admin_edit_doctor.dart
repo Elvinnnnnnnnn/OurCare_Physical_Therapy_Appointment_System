@@ -22,6 +22,7 @@ class AdminEditDoctorScreen extends StatefulWidget {
 }
 
 class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
+
   late TextEditingController nameCtrl;
   late TextEditingController expCtrl;
   late TextEditingController aboutCtrl;
@@ -32,9 +33,10 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
   File? _imageFile;
   File? _qrImageFile;
-  final ImagePicker _picker = ImagePicker();
 
-  // 🎨 Admin colors
+  final ImagePicker _picker = ImagePicker();
+  List<String> selectedCategoryIds = [];
+
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
@@ -42,21 +44,22 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   @override
-    void initState() {
-      super.initState();
-      nameCtrl = TextEditingController(text: widget.doctorData['name']);
-      expCtrl = TextEditingController(text: widget.doctorData['experience']);
-      aboutCtrl = TextEditingController(text: widget.doctorData['aboutMe']);
-      priceCtrl = TextEditingController(
-        text: (widget.doctorData['consultationPrice'] ?? 0).toString(),
-      );
-      activated = widget.doctorData['activated'] ?? false;
+  void initState() {
+    super.initState();
+
+    nameCtrl = TextEditingController(text: widget.doctorData['name']);
+    expCtrl = TextEditingController(text: widget.doctorData['experience']);
+    aboutCtrl = TextEditingController(text: widget.doctorData['aboutMe']);
+    priceCtrl = TextEditingController(
+      text: (widget.doctorData['consultationPrice'] ?? 0).toString(),
+    );
+
+    activated = widget.doctorData['activated'] ?? false;
+
+    selectedCategoryIds =
+      List<String>.from(widget.doctorData['categoryIds'] ?? []);
   }
 
-
-  /// ======================
-  /// PICK PHOTO
-  /// ======================
   Future<void> _pickPhoto() async {
     final picked = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -73,21 +76,18 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   }
 
   Future<void> _pickQrImage() async {
-  final picked = await _picker.pickImage(
-    source: ImageSource.gallery,
-    imageQuality: 75,
-  );
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
 
-  if (picked != null) {
-    setState(() {
-      _qrImageFile = File(picked.path);
-    });
+    if (picked != null) {
+      setState(() {
+        _qrImageFile = File(picked.path);
+      });
+    }
   }
-}
 
-  /// ======================
-  /// UPLOAD PHOTO
-  /// ======================
   Future<String?> _uploadPhoto() async {
     if (_imageFile == null) return widget.doctorData['photoUrl'];
 
@@ -100,95 +100,106 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
     return await ref.getDownloadURL();
   }
 
+  Future<String?> _uploadQrImage() async {
+    if (_qrImageFile == null) {
+      return widget.doctorData['qrImageUrl'];
+    }
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('doctor_qr')
+        .child('${widget.doctorId}_qr.jpg');
+
+    await ref.putFile(_qrImageFile!);
+    return await ref.getDownloadURL();
+  }
+
   Future<void> save() async {
     setState(() => isLoading = true);
 
-    final photoUrl = await _uploadPhoto();
-    final qrUrl = await _uploadQrImage();
+    try {
 
-    await FirebaseFirestore.instance
-        .collection('doctors')
-        .doc(widget.doctorId)
-        .update({
-      'name': nameCtrl.text.trim(),
-      'experience': expCtrl.text.trim(),
-      'aboutMe': aboutCtrl.text.trim(),
-      'activated': activated,
-      'photoUrl': photoUrl,
-      'consultationPrice': int.tryParse(priceCtrl.text.trim()) ?? 0,
-      'currency': 'PHP',
-      'qrImageUrl': qrUrl,
-    });
+      final photoUrl = await _uploadPhoto();
+      final qrUrl = await _uploadQrImage();
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.doctorData['userId'])
-        .update({
-      'fullName': nameCtrl.text.trim(),
-    });
+      await FirebaseFirestore.instance
+          .collection('doctors')
+          .doc(widget.doctorId)
+          .update({
+        'name': nameCtrl.text.trim(),
+        'experience': expCtrl.text.trim(),
+        'aboutMe': aboutCtrl.text.trim(),
+        'categoryIds': selectedCategoryIds,
+        'activated': activated,
+        'photoUrl': photoUrl,
+        'consultationPrice': int.tryParse(priceCtrl.text.trim()) ?? 0,
+        'currency': 'PHP',
+        'qrImageUrl': qrUrl,
+      });
 
-    print('Updating users doc: ${widget.doctorData['userId']}');
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.doctorData['userId'])
+          .update({
+        'fullName': nameCtrl.text.trim(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Doctor updated')),
+      );
+
+      Navigator.pop(context);
+
+    } catch (e) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
 
     setState(() => isLoading = false);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Doctor updated')),
-    );
-
-    Navigator.pop(context);
   }
 
-  Future<String?> _uploadQrImage() async {
-  if (_qrImageFile == null) {
-    return widget.doctorData['qrImageUrl'];
-  }
-
-  final ref = FirebaseStorage.instance
-      .ref()
-      .child('doctor_qr')
-      .child('${widget.doctorId}_qr.jpg');
-
-  await ref.putFile(_qrImageFile!);
-  return await ref.getDownloadURL();
-}
-
-  @override
-  void dispose() {
-    nameCtrl.dispose();
-    expCtrl.dispose();
-    aboutCtrl.dispose();
-    priceCtrl.dispose(); 
-    super.dispose();
-  }
-
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, top: 20),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: kDarkBlue,
-        ),
+  InputDecoration _input(String label, String hint) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF7F9FC),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: kPrimaryBlue, width: 1.4),
       ),
     );
   }
 
   Widget _card({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 18),
       decoration: BoxDecoration(
         color: kWhite,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -197,26 +208,44 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   }
 
   @override
+  void dispose() {
+    nameCtrl.dispose();
+    expCtrl.dispose();
+    aboutCtrl.dispose();
+    priceCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+
     final String? photoUrl = widget.doctorData['photoUrl'];
 
     return Scaffold(
       backgroundColor: kWhite,
+
       appBar: AppBar(
-        title: const Text('Edit Doctor'),
+        title: const Text(
+          'Edit Doctor',
+          style: TextStyle(
+            color: kDarkBlue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: kWhite,
-        elevation: 0.8,
-        foregroundColor: kDarkBlue,
+        elevation: 0.6,
+        iconTheme: const IconThemeData(color: kDarkBlue),
       ),
+
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          /// 🖼️ PHOTO (NEW)
+
           Center(
             child: GestureDetector(
               onTap: _pickPhoto,
               child: CircleAvatar(
-                radius: 48,
+                radius: 50,
                 backgroundColor: kSoftBlue,
                 backgroundImage: _imageFile != null
                     ? FileImage(_imageFile!)
@@ -224,20 +253,150 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                         ? NetworkImage(photoUrl)
                         : null,
                 child: _imageFile == null && photoUrl == null
-                    ? const Icon(Icons.camera_alt,
-                        color: kDarkBlue, size: 28)
+                    ? const Icon(
+                        Icons.camera_alt,
+                        color: kDarkBlue,
+                        size: 28,
+                      )
                     : null,
               ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          _sectionTitle('GCash QR Code'),
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                const Text(
+                  'Doctor Information',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kDarkBlue,
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: nameCtrl,
+                  decoration: _input('Doctor Name', 'Enter doctor name'),
+                ),
+
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: expCtrl,
+                  decoration: _input('Experience', 'Years of experience'),
+                ),
+
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: _input(
+                    'Consultation Price',
+                    'Enter price in PHP',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                const Text(
+                  'About Doctor',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kDarkBlue,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: aboutCtrl,
+                  maxLines: 4,
+                  decoration: _input('Description', 'About the doctor'),
+                ),
+              ],
+            ),
+          ),
+
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                const Text(
+                  'Categories',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kDarkBlue,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('categories')
+                      .orderBy('name')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+
+                    if (!snapshot.hasData) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    final categories = snapshot.data!.docs;
+
+                    return Column(
+                      children: categories.map((doc) {
+
+                        final id = doc.id;
+                        final name = doc['name'];
+                        final selected = selectedCategoryIds.contains(id);
+
+                        return CheckboxListTile(
+                          value: selected,
+                          title: Text(name),
+
+                          onChanged: (value) {
+
+                            setState(() {
+
+                              if (value == true) {
+                                selectedCategoryIds.add(id);
+                              } else {
+                                selectedCategoryIds.remove(id);
+                              }
+
+                            });
+
+                          },
+                        );
+
+                      }).toList(),
+                    );
+
+                  },
+                ),
+              ],
+            ),
+          ),
 
           _card(
             child: Column(
               children: [
+
                 GestureDetector(
                   onTap: _pickQrImage,
                   child: Container(
@@ -253,7 +412,9 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                             )
                           : widget.doctorData['qrImageUrl'] != null
                               ? DecorationImage(
-                                  image: NetworkImage(widget.doctorData['qrImageUrl']),
+                                  image: NetworkImage(
+                                    widget.doctorData['qrImageUrl'],
+                                  ),
                                   fit: BoxFit.cover,
                                 )
                               : null,
@@ -262,141 +423,51 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                             widget.doctorData['qrImageUrl'] == null
                         ? const Center(
                             child: Text(
-                              'Tap to upload QR Code',
+                              'Tap to upload GCash QR',
                               style: TextStyle(color: kDarkBlue),
                             ),
                           )
                         : null,
                   ),
                 ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
-          /// BASIC INFO
-          _sectionTitle('Doctor Information'),
-
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Doctor Name',
-                  style: TextStyle(fontSize: 12, color: kGreyText),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter doctor name',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: activated,
+                  activeColor: kPrimaryBlue,
+                  title: const Text(
+                    'Activate Doctor Account',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: kDarkBlue,
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Experience',
-                  style: TextStyle(fontSize: 12, color: kGreyText),
-                ),
-
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Consultation Price (PHP)',
-                  style: TextStyle(fontSize: 12, color: kGreyText),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: priceCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter price',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                  subtitle: Text(
+                    activated
+                        ? 'Doctor can log in and receive appointments'
+                        : 'Doctor account is disabled',
+                    style: const TextStyle(fontSize: 12),
                   ),
-                ),
-
-                const SizedBox(height: 6),
-                TextField(
-                  controller: expCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Years of experience',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      activated = value;
+                    });
+                  },
                 ),
               ],
             ),
           ),
 
-          /// ABOUT
-          _sectionTitle('About Doctor'),
+          const SizedBox(height: 4),
 
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Description',
-                  style: TextStyle(fontSize: 12, color: kGreyText),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: aboutCtrl,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'About the doctor',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          /// ACCOUNT STATUS
-          _sectionTitle('Account Status'),
-
-          _card(
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Activate Doctor Account',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: kDarkBlue,
-                ),
-              ),
-              subtitle: Text(
-                activated
-                    ? 'Doctor can log in and receive appointments'
-                    : 'Doctor account is disabled',
-                style: const TextStyle(fontSize: 12),
-              ),
-              value: activated,
-              activeColor: kPrimaryBlue,
-              onChanged: (value) {
-                setState(() {
-                  activated = value;
-                });
-              },
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          /// SAVE BUTTON
           SizedBox(
-            width: double.infinity,
+            height: 50,
             child: ElevatedButton(
               onPressed: isLoading ? null : save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimaryBlue,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -417,9 +488,8 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
-          /// AVAILABILITY BUTTON
           OutlinedButton.icon(
             icon: const Icon(Icons.schedule),
             label: const Text('Edit Availability'),
@@ -430,7 +500,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                 borderRadius: BorderRadius.circular(14),
               ),
               side: BorderSide(
-                color: kDarkBlue.withOpacity(0.4),
+                color: kDarkBlue.withOpacity(.4),
               ),
             ),
             onPressed: () {
@@ -446,6 +516,8 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
               );
             },
           ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );

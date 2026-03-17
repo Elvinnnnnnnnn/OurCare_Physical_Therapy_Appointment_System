@@ -9,17 +9,29 @@ import 'admin_add_category.dart';
 class AdminCategoryList extends StatelessWidget {
   const AdminCategoryList({super.key});
 
-  // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kWhite,
 
-      /// ➕ ADD SERVICE BUTTON
+      appBar: AppBar(
+        title: const Text(
+          'Services',
+          style: TextStyle(
+            color: kDarkBlue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: kWhite,
+        elevation: 0.6,
+        iconTheme: const IconThemeData(color: kDarkBlue),
+      ),
+
       floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
@@ -34,28 +46,20 @@ class AdminCategoryList extends StatelessWidget {
       ),
 
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // ✅ FAB SAFE SPACE
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// HEADER
-            const Text(
-              'Services',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: kDarkBlue,
-              ),
-            ),
-            const SizedBox(height: 6),
             const Text(
               'Manage clinic services',
-              style: TextStyle(color: Colors.black54),
+              style: TextStyle(
+                color: Colors.black54,
+                fontSize: 13,
+              ),
             ),
 
             const SizedBox(height: 20),
 
-            /// SERVICE LIST
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -80,7 +84,7 @@ class AdminCategoryList extends StatelessWidget {
                   return ListView.separated(
                     itemCount: categories.length,
                     separatorBuilder: (_, __) =>
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                     itemBuilder: (context, index) {
                       final category = categories[index];
                       final data =
@@ -104,9 +108,6 @@ class AdminCategoryList extends StatelessWidget {
   }
 }
 
-/// ======================
-/// SERVICE CARD
-/// ======================
 class _CategoryCard extends StatelessWidget {
   final String categoryId;
   final String name;
@@ -120,38 +121,55 @@ class _CategoryCard extends StatelessWidget {
     required this.imageUrl,
   });
 
+  static const Color kWhite = Color(0xFFFFFFFF);
+  static const Color kPrimaryBlue = Color(0xFF1562E2);
+  static const Color kDarkBlue = Color(0xFF001C99);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: kWhite,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Row(
         children: [
-          /// IMAGE
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: const Color(0xFFB3EBF2),
-            backgroundImage:
-                imageUrl != null ? NetworkImage(imageUrl!) : null,
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: kSoftBlue,
+              borderRadius: BorderRadius.circular(12),
+              image: imageUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
             child: imageUrl == null
-                ? const Icon(Icons.medical_services,
-                    color: Color(0xFF001C99))
+                ? const Icon(
+                    Icons.medical_services,
+                    color: kDarkBlue,
+                  )
                 : null,
           ),
 
           const SizedBox(width: 14),
 
-          /// NAME + DESCRIPTION
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,6 +179,7 @@ class _CategoryCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
+                    color: kDarkBlue,
                   ),
                 ),
                 if (description.isNotEmpty) ...[
@@ -179,7 +198,6 @@ class _CategoryCard extends StatelessWidget {
             ),
           ),
 
-          /// MENU
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'edit') {
@@ -191,10 +209,14 @@ class _CategoryCard extends StatelessWidget {
                   imageUrl,
                 );
               }
+
               if (value == 'delete') {
                 _deleteService(context, categoryId);
               }
             },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             itemBuilder: (context) => const [
               PopupMenuItem(
                 value: 'edit',
@@ -214,9 +236,6 @@ class _CategoryCard extends StatelessWidget {
     );
   }
 
-  /// ======================
-  /// EDIT SERVICE (NAME + MEANING + PHOTO)
-  /// ======================
   void _editService(
     BuildContext context,
     String categoryId,
@@ -235,6 +254,9 @@ class _CategoryCard extends StatelessWidget {
       builder: (_) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text('Edit Service'),
             content: SingleChildScrollView(
               child: Column(
@@ -245,6 +267,7 @@ class _CategoryCard extends StatelessWidget {
                         source: ImageSource.gallery,
                         imageQuality: 75,
                       );
+
                       if (picked != null) {
                         setState(() {
                           pickedImage = File(picked.path);
@@ -253,7 +276,7 @@ class _CategoryCard extends StatelessWidget {
                     },
                     child: CircleAvatar(
                       radius: 36,
-                      backgroundColor: const Color(0xFFB3EBF2),
+                      backgroundColor: kSoftBlue,
                       backgroundImage: pickedImage != null
                           ? FileImage(pickedImage!)
                           : currentImage != null
@@ -282,7 +305,8 @@ class _CategoryCard extends StatelessWidget {
                     controller: descCtrl,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'Service Meaning / Description',
+                      labelText:
+                          'Service Meaning / Description',
                     ),
                   ),
                 ],
@@ -294,11 +318,13 @@ class _CategoryCard extends StatelessWidget {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryBlue,
+                ),
                 onPressed: () async {
                   final newName = nameCtrl.text.trim();
                   final normalized = newName.toLowerCase();
 
-                  /// 🔒 DUPLICATE CHECK
                   final existing = await FirebaseFirestore.instance
                       .collection('categories')
                       .where('nameLower', isEqualTo: normalized)
@@ -352,9 +378,6 @@ class _CategoryCard extends StatelessWidget {
     );
   }
 
-  /// ======================
-  /// DELETE SERVICE (SAFE)
-  /// ======================
   Future<void> _deleteService(
     BuildContext context,
     String categoryId,
@@ -379,6 +402,9 @@ class _CategoryCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
         title: const Text('Delete Service'),
         content: const Text(
           'Are you sure you want to delete this service?',

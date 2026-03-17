@@ -167,9 +167,9 @@ exports.adminCreateDoctor = onCall(
       email,
       experience,
       aboutMe,
-      categoryId,
-      categoryName,
+      categoryIds,
       photoUrl,
+      qrImageUrl,
       consultationPrice,
       currency,
     } = request.data;
@@ -180,9 +180,9 @@ exports.adminCreateDoctor = onCall(
       email,
       experience,
       aboutMe,
-      categoryId,
-      categoryName,
+      categoryIds: categoryIds || [],
       photoUrl,
+      qrImageUrl,
 
       consultationPrice: consultationPrice,
       currency: currency ?? "PHP",

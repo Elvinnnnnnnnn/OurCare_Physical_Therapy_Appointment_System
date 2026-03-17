@@ -10,7 +10,6 @@ class AdminProfileTab extends StatefulWidget {
 }
 
 class _AdminProfileTabState extends State<AdminProfileTab> {
-  // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
@@ -30,7 +29,6 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     _loadAdminName();
   }
 
-  /// 🔹 LOAD FULL NAME
   Future<void> _loadAdminName() async {
     if (user == null) return;
 
@@ -44,7 +42,6 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     }
   }
 
-  /// ✏️ UPDATE FULL NAME
   Future<void> _updateName() async {
     if (_nameController.text.trim().isEmpty) return;
 
@@ -66,7 +63,6 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     );
   }
 
-  /// 🔒 CHANGE PASSWORD
   Future<void> _changePassword() async {
     if (_passwordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +89,6 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     setState(() => _loadingPassword = false);
   }
 
-  /// 🚪 LOGOUT
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
 
@@ -109,188 +104,234 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kWhite,
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    /// 👤 AVATAR
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: kSoftBlue,
-                      child: const Icon(
-                        Icons.admin_panel_settings,
-                        size: 40,
-                        color: kDarkBlue,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    /// ROLE
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kDarkBlue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'ADMIN',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    /// EMAIL
-                    _infoTile(
-                      icon: Icons.email,
-                      label: 'Email',
-                      value: user?.email ?? 'Unknown',
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// ✏️ FULL NAME
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loadingName ? null : _updateName,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
-                        ),
-                        child: _loadingName
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Save Name'),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    /// 🔒 CHANGE PASSWORD
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'New Password',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            _loadingPassword ? null : _changePassword,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
-                        ),
-                        child: _loadingPassword
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Change Password'),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    /// 🚪 LOGOUT
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.logout, color: Colors.white),
-                        label: const Text(
-                          'Logout',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        onPressed: _logout,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+  InputDecoration _input(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: const Color(0xFFF7F9FC),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: kPrimaryBlue, width: 1.4),
       ),
     );
   }
 
-  Widget _infoTile({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: kPrimaryBlue),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-            ],
+  Widget _card({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kWhite,
+
+      appBar: AppBar(
+        title: const Text(
+          'Admin Profile',
+          style: TextStyle(
+            color: kDarkBlue,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      ],
+        backgroundColor: kWhite,
+        elevation: 0.6,
+        iconTheme: const IconThemeData(color: kDarkBlue),
+      ),
+
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: kSoftBlue,
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    size: 40,
+                    color: kDarkBlue,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kDarkBlue,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'ADMIN',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Account Information',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kDarkBlue,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Text(
+                  user?.email ?? 'Unknown',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: _nameController,
+                  decoration: _input('Full Name'),
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: _loadingName ? null : _updateName,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _loadingName
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Save Name',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Security',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kDarkBlue,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: _input('New Password'),
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed:
+                        _loadingPassword ? null : _changePassword,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _loadingPassword
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Change Password',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 26),
+
+          SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.logout, color: Colors.white),
+              label: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              onPressed: _logout,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

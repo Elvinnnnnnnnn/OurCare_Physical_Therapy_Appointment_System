@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class RescheduleAppointmentScreen extends StatefulWidget {
   final String appointmentId;
@@ -23,7 +25,7 @@ class _RescheduleAppointmentScreenState
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   String? _selectedTime;
-
+  bool _showSlots = false;
   List<String> bookedTimes = [];
 
   Map<String, dynamic> doctorData = {};
@@ -32,12 +34,6 @@ class _RescheduleAppointmentScreenState
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
-
-  @override
-  void initState() {
-    super.initState();
-    loadDoctor();
-  }
 
   Future<void> loadDoctor() async {
     final doctorId = widget.appointmentData['doctorId'];
@@ -60,81 +56,137 @@ class _RescheduleAppointmentScreenState
 
     if (data == null || data is! Map) return {};
 
-    final Map<String, dynamic> result = {};
-
-    data.forEach((day, value) {
-      if (value is List) {
-        result[day] = {
-          'enabled': true,
-          'slots': value.map((slot) {
-            final map = Map<String, dynamic>.from(slot);
-            return {
-              'start': map['start'],
-              'end': map['end'],
-              'active': true,
-            };
-          }).toList(),
-        };
-      } else if (value is Map) {
-        result[day] = {
-          'enabled': value['enabled'] ?? true,
-          'slots': (value['slots'] as List? ?? []).map((slot) {
-            final map = Map<String, dynamic>.from(slot);
-            return {
-              'start': map['start'],
-              'end': map['end'],
-              'active': map['active'] ?? true,
-            };
-          }).toList(),
-        };
-      }
-    });
-
-    return result;
+    return Map<String, dynamic>.from(data);
   }
 
   String weekdayKey(DateTime day) {
     return DateFormat('EEEE').format(day).toLowerCase();
   }
 
-  List<String> availableRangesForDay(DateTime day) {
-    if (availability.isEmpty) return [];
-
-    final key = weekdayKey(day);
-    final dayData = availability[key];
-
-    if (dayData == null) return [];
-    if (dayData['enabled'] != true) return [];
-
-    final List slots = dayData['slots'] ?? [];
-
-    return slots
-        .where((s) => s['active'] == true)
-        .map<String>((s) => '${s['start']} - ${s['end']}')
-        .toList();
-  }
+  List<DateTime> holidays = [];
 
   Future<void> loadBookedTimes(DateTime day) async {
-    final dateString = '${day.year}-${day.month}-${day.day}';
+
+    final doctorId = widget.appointmentData['doctorId'];
+
+    final date = '${day.year}-${day.month}-${day.day}';
 
     final snapshot = await FirebaseFirestore.instance
         .collection('appointments')
-        .where('doctorId',
-            isEqualTo: widget.appointmentData['doctorId'])
-        .where('date', isEqualTo: dateString)
-        .where('status', whereIn: ['pending', 'approved', 'completed'])
+        .where('doctorId', isEqualTo: doctorId)
+        .where('date', isEqualTo: date)
         .get();
 
-    setState(() {
-      bookedTimes = snapshot.docs
-          .where((doc) => doc.id != widget.appointmentId)
-          .map((doc) => doc['time'] as String)
-          .toList();
-    });
+    bookedTimes = snapshot.docs
+        .map((doc) => doc['time'] as String)
+        .toList();
+
+    setState(() {});
+  }
+
+  Future<void> loadHolidays() async {
+    final year = DateTime.now().year;
+
+    final response = await http.get(
+      Uri.parse("https://date.nager.at/api/v3/PublicHolidays/$year/PH"),
+    );
+
+    final data = jsonDecode(response.body);
+
+    holidays = data.map<DateTime>((holiday) {
+      return DateTime.parse(holiday['date']);
+    }).toList();
+
+    setState(() {});
+  }
+
+  bool isHoliday(DateTime day) {
+    return holidays.any((holiday) =>
+        holiday.year == day.year &&
+        holiday.month == day.month &&
+        holiday.day == day.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadDoctor();
+    loadHolidays();
+  }
+
+  List<String> availableRangesForDay(DateTime day) {
+
+    if (availability.isEmpty) return [];
+
+    final key = weekdayKey(day);
+    final rawData = availability[key];
+
+    if (rawData == null) return [];
+    if (rawData is! Map) return [];
+
+    final dayData = rawData;
+
+    if (dayData['enabled'] != true) return [];
+
+    final start = dayData['start'];
+    final end = dayData['end'];
+
+    if (start == null || end == null) return [];
+
+    final startTime = DateFormat('hh:mm a').parse(start);
+    final endTime = DateFormat('hh:mm a').parse(end);
+
+    List<String> slots = [];
+
+    DateTime current = startTime;
+
+    while (current.isBefore(endTime)) {
+
+      final next = current.add(const Duration(hours: 1));
+
+      if (next.isAfter(endTime)) break;
+
+      final startFormatted = DateFormat('hh:mm a').format(current);
+      final endFormatted = DateFormat('hh:mm a').format(next);
+
+      final slot = '$startFormatted - $endFormatted';
+
+      if (!bookedTimes.contains(slot)) {
+        slots.add(slot);
+      }
+
+      current = next;
+    }
+
+    return slots;
   }
 
   Future<void> rescheduleAppointment() async {
+
     if (_selectedDay == null || _selectedTime == null) return;
+
+    final doctorId = widget.appointmentData['doctorId'];
+
+    final date =
+        '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}';
+
+    final existing = await FirebaseFirestore.instance
+        .collection('appointments')
+        .where('doctorId', isEqualTo: doctorId)
+        .where('date', isEqualTo: date)
+        .where('time', isEqualTo: _selectedTime)
+        .get();
+
+    if (existing.docs.isNotEmpty) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This time slot is already booked'),
+        ),
+      );
+
+      return;
+    }
 
     final startTime = _selectedTime!.split(' - ').first;
     final parsed = DateFormat('hh:mm a').parse(startTime);
@@ -147,21 +199,11 @@ class _RescheduleAppointmentScreenState
       parsed.minute,
     );
 
-    if (bookedTimes.contains(_selectedTime)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This time slot is already booked'),
-        ),
-      );
-      return;
-    }
-
     await FirebaseFirestore.instance
         .collection('appointments')
         .doc(widget.appointmentId)
         .update({
-      'date':
-          '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}',
+      'date': date,
       'time': _selectedTime,
       'dateTime': Timestamp.fromDate(newDateTime),
       'status': 'pending',
@@ -188,6 +230,12 @@ class _RescheduleAppointmentScreenState
         ? <String>[]
         : availableRangesForDay(_selectedDay!);
 
+    final range = _selectedDay == null
+      ? null
+      : times.isNotEmpty
+          ? "${times.first.split(' - ').first} - ${times.last.split(' - ').last}"
+          : null;
+
     return Scaffold(
       backgroundColor: kWhite,
       appBar: AppBar(
@@ -212,38 +260,92 @@ class _RescheduleAppointmentScreenState
             const SizedBox(height: 8),
 
             TableCalendar(
-            firstDay: DateTime(2000),
-            lastDay: DateTime(2100),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) =>
-                isSameDay(_selectedDay, day),
+              firstDay: DateTime(2000),
+              lastDay: DateTime(2100),
+              focusedDay: _focusedDay,
 
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false, // 🔥 removes 2 weeks / month
-              titleCentered: true,
-            ),
+              selectedDayPredicate: (day) =>
+                  isSameDay(_selectedDay, day),
 
-            availableCalendarFormats: const {
-              CalendarFormat.month: 'Month',
-            },
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+              ),
 
-            calendarFormat: CalendarFormat.month,
+              availableCalendarFormats: const {
+                CalendarFormat.month: 'Month',
+              },
 
-            enabledDayPredicate: (day) {
-              final key = weekdayKey(day);
-              final dayData = availability[key];
-              if (dayData == null) return false;
-              return dayData['enabled'] == true;
-            },
+              calendarFormat: CalendarFormat.month,
 
-            onDaySelected: (day, focusedDay) {
+              eventLoader: (day) {
+                if (isHoliday(day)) {
+                  return ['holiday'];
+                }
+                return [];
+              },
+
+              calendarStyle: const CalendarStyle(
+                markerDecoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+
+              calendarBuilders: CalendarBuilders(
+                defaultBuilder: (context, day, focusedDay) {
+                  if (isHoliday(day)) {
+                    return Container(
+                      margin: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${day.day}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    );
+                  }
+                  return null;
+                },
+              ),
+
+              enabledDayPredicate: (day) {
+
+                final key = weekdayKey(day);
+                final rawData = availability[key];
+
+                if (rawData == null) return false;
+                if (rawData is! Map) return false;
+
+                final dayData = rawData;
+
+                return dayData['enabled'] == true;
+              },
+
+              onDaySelected: (day, focusedDay) async {
+
+              if (isHoliday(day)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Holiday. Reschedule unavailable'),
+                  ),
+                );
+                return;
+              }
+
+              await loadBookedTimes(day);
+
               setState(() {
                 _selectedDay = day;
                 _focusedDay = focusedDay;
                 _selectedTime = null;
+                _showSlots = false;
               });
             },
-          ),
+            ),
 
             const SizedBox(height: 20),
 
@@ -254,37 +356,58 @@ class _RescheduleAppointmentScreenState
             ),
             const SizedBox(height: 10),
 
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: times.length,
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 3,
-              ),
-              itemBuilder: (context, index) {
-                final time = times[index];
-                final isBooked = bookedTimes.contains(time);
-                final selected = time == _selectedTime;
-
-                return ChoiceChip(
-                  label: Text(
-                    isBooked ? '$time (Booked)' : time,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
+            if (_selectedDay != null && !_showSlots && range != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  selected: selected,
-                  selectedColor: kPrimaryBlue,
-                  disabledColor: Colors.grey.shade300,
-                  onSelected: isBooked
-                      ? null
-                      : (_) => setState(() => _selectedTime = time),
-                );
-              },
-            ),
+                  onPressed: () {
+                    setState(() {
+                      _showSlots = true;
+                    });
+                  },
+                  child: Text(
+                    range,
+                    style: const TextStyle(color: kWhite),
+                  ),
+                ),
+              ),
+
+            if (_showSlots)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: times.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3,
+                ),
+                itemBuilder: (context, index) {
+
+                  final time = times[index];
+                  final selected = time == _selectedTime;
+
+                  return ChoiceChip(
+                    label: Text(
+                      time,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    selected: selected,
+                    selectedColor: kPrimaryBlue,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedTime = time;
+                      });
+                    },
+                  );
+                },
+              ),
 
             const SizedBox(height: 30),
 

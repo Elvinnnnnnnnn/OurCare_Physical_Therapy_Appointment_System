@@ -13,10 +13,15 @@ class _AdminUsersTabState extends State<AdminUsersTab>
     with SingleTickerProviderStateMixin {
   late TabController _controller;
 
+  static const Color kWhite = Color(0xFFFFFFFF);
+  static const Color kPrimaryBlue = Color(0xFF1562E2);
+  static const Color kDarkBlue = Color(0xFF001C99);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
+
   @override
   void initState() {
     super.initState();
-    _controller = TabController(length: 3, vsync: this); // ⬅️ 3 tabs
+    _controller = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -25,11 +30,39 @@ class _AdminUsersTabState extends State<AdminUsersTab>
     super.dispose();
   }
 
+  Widget _tabItem(String text) {
+    return Tab(
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kWhite,
+
+      appBar: AppBar(
+        title: const Text(
+          'User Management',
+          style: TextStyle(
+            color: kDarkBlue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: kWhite,
+        elevation: 0.6,
+        iconTheme: const IconThemeData(color: kDarkBlue),
+      ),
+
       floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
+        backgroundColor: kPrimaryBlue,
+        child: const Icon(Icons.add, color: Colors.white),
         onPressed: () {
           Navigator.push(
             context,
@@ -39,26 +72,36 @@ class _AdminUsersTabState extends State<AdminUsersTab>
           );
         },
       ),
+
       body: Column(
         children: [
-          /// 🧭 TABS
-          TabBar(
-            controller: _controller,
-            tabs: const [
-              Tab(text: 'Customers'),
-              Tab(text: 'Doctors'),
-              Tab(text: 'Admins'), // ⬅️ NEW
-            ],
+          const SizedBox(height: 16),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TabBar(
+              controller: _controller,
+              indicatorColor: kPrimaryBlue,
+              indicatorWeight: 3,
+              labelColor: kPrimaryBlue,
+              unselectedLabelColor: Colors.black54,
+              tabs: [
+                _tabItem('Customers'),
+                _tabItem('Doctors'),
+                _tabItem('Admins'),
+              ],
+            ),
           ),
 
-          /// 📄 TAB CONTENT
+          const SizedBox(height: 6),
+
           Expanded(
             child: TabBarView(
               controller: _controller,
               children: const [
                 AdminUserList(role: 'customer'),
                 AdminUserList(role: 'doctor'),
-                AdminUserList(role: 'admin'), // ⬅️ NEW
+                AdminUserList(role: 'admin'),
               ],
             ),
           ),

@@ -596,7 +596,9 @@ class _DoctorAppointmentCard extends StatelessWidget {
             ),
             child: Text(
               paymentStatus == 'approved'
-                  ? 'Payment Approved'
+              ? 'Payment Approved'
+              : paymentStatus == 'cash_pending'
+                  ? 'Cash Payment'
                   : 'Payment For Verification',
               style: TextStyle(
                 color: paymentStatus == 'approved'
@@ -604,6 +606,27 @@ class _DoctorAppointmentCard extends StatelessWidget {
                     : Colors.orange,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          /// PAYMENT METHOD
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              appointment['paymentMethod'] == 'cash'
+                  ? 'Payment Method: Cash'
+                  : 'Payment Method: GCash',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Colors.blue,
               ),
             ),
           ),
@@ -669,7 +692,8 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
         /// APPROVE / REJECT ONLY WHEN PENDING
         /// APPROVE / REJECT ONLY WHEN PENDING
-          if (status == 'pending' && paymentStatus == 'for_verification') ...[
+          if (status == 'pending' &&
+          (paymentStatus == 'for_verification' || paymentStatus == 'cash_pending'))...[
             const SizedBox(height: 14),
             Row(
               children: [
@@ -883,6 +907,10 @@ class AppointmentDetailsScreen extends StatelessWidget {
               _infoRow('Time', time),
               _infoRow('Status', status),
               _infoRow('Payment Status', paymentStatus),
+              _infoRow(
+                'Payment Method',
+                (appointment['paymentMethod'] ?? 'Unknown').toString(),
+              ),
             ]),
 
           ],

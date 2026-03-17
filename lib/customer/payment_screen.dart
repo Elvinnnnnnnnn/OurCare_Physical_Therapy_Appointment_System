@@ -23,6 +23,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Map<String, dynamic>? paymentData;
   Map<String, dynamic>? doctorData;
 
+  String paymentMethod = 'gcash';
+
   @override
   void initState() {
     super.initState();
@@ -79,94 +81,113 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> confirmPayment() async {
-  if (_amountController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please enter amount')),
-    );
-    return;
-  }
 
-  final double enteredAmount =
-      double.tryParse(_amountController.text) ?? 0;
+    if (_amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter amount')),
+      );
+      return;
+    }
 
-  if (enteredAmount <= 0) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invalid amount')),
-    );
-    return;
-  }
+    final double enteredAmount =
+        double.tryParse(_amountController.text) ?? 0;
 
-  if (_screenshotFile == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please upload screenshot')),
-    );
-    return;
-  }
+    if (enteredAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid amount')),
+      );
+      return;
+    }
 
-  setState(() => loading = true);
+    if (paymentMethod == 'gcash' && _screenshotFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload screenshot')),
+      );
+      return;
+    }
 
-  final paymentDoc = await FirebaseFirestore.instance
-      .collection('payments')
-      .doc(widget.paymentId)
-      .get();
+    setState(() => loading = true);
 
-  final data = paymentDoc.data();
-  if (data == null) {
+    final paymentDoc = await FirebaseFirestore.instance
+        .collection('payments')
+        .doc(widget.paymentId)
+        .get();
+
+    final data = paymentDoc.data();
+    if (data == null) {
+      setState(() => loading = false);
+      return;
+    }
+
+    String? screenshotUrl;
+
+    if (paymentMethod == 'gcash') {
+      screenshotUrl = await uploadScreenshot();
+    }
+
+    final userSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(data['userId'])
+        .get();
+
+    final userData = userSnap.data();
+
+    if (paymentMethod == 'gcash') {
+
+      await FirebaseFirestore.instance
+          .collection('payments')
+          .doc(widget.paymentId)
+          .update({
+        'paymentMethod': 'gcash',
+        'status': 'for_verification',
+        'submittedAt': FieldValue.serverTimestamp(),
+        'screenshotUrl': screenshotUrl,
+        'amountPaid': enteredAmount,
+      });
+
+    } else {
+
+      await FirebaseFirestore.instance
+          .collection('payments')
+          .doc(widget.paymentId)
+          .update({
+        'paymentMethod': 'cash',
+        'status': 'cash_pending',
+        'amountPaid': enteredAmount,
+      });
+
+    }
+
+    await FirebaseFirestore.instance.collection('appointments').add({
+      'userId': data['userId'],
+      'patientName': userData?['fullName'] ?? 'Unknown',
+      'patientEmail': userData?['email'] ?? '',
+      'doctorId': data['doctorId'],
+      'doctorName': data['doctorName'],
+      'categoryName': data['categoryName'],
+      'amountPaid': enteredAmount,
+      'currency': data['currency'],
+      'date': data['date'],
+      'time': data['time'],
+      'status': 'pending',
+      'paymentStatus':
+          paymentMethod == 'gcash' ? 'for_verification' : 'cash_pending',
+      'paymentMethod': paymentMethod,
+      'paymentId': widget.paymentId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
     setState(() => loading = false);
-    return;
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment submitted')),
+    );
+
+    Navigator.pop(context);
+    Navigator.pop(context);
   }
-
-  final screenshotUrl = await uploadScreenshot();
-  if (screenshotUrl == null) {
-    setState(() => loading = false);
-    return;
-  }
-
-  final userSnap = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(data['userId'])
-      .get();
-
-  final userData = userSnap.data();
-
-  await FirebaseFirestore.instance
-      .collection('payments')
-      .doc(widget.paymentId)
-      .update({
-    'status': 'for_verification',
-    'submittedAt': FieldValue.serverTimestamp(),
-    'screenshotUrl': screenshotUrl,
-    'amountPaid': enteredAmount,
-  });
-
-  await FirebaseFirestore.instance.collection('appointments').add({
-    'userId': data['userId'],
-    'patientName': userData?['fullName'] ?? 'Unknown',
-    'patientEmail': userData?['email'] ?? '',
-    'doctorId': data['doctorId'],
-    'doctorName': data['doctorName'],
-    'categoryName': data['categoryName'],
-    'amountPaid': enteredAmount,
-    'currency': data['currency'],
-    'date': data['date'],
-    'time': data['time'],
-    'status': 'pending',
-    'paymentStatus': 'for_verification',
-    'paymentId': widget.paymentId,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
-
-  setState(() => loading = false);
-
-  if (!mounted) return;
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Payment submitted')),
-  );
-
-  Navigator.pop(context);
-  Navigator.pop(context);
-}
 
   @override
   Widget build(BuildContext context) {
@@ -245,48 +266,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
               const SizedBox(height: 30),
 
-              /// QR CARD
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: doctorData!['qrImageUrl'] != null
-                    ? Image.network(
-                        doctorData!['qrImageUrl'],
-                        height: 300,
-                        fit: BoxFit.contain,
-                      )
-                    : const SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: Text("No QR available"),
-                        ),
-                      ),
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Open GCash app and scan this QR",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              /// UPLOAD SECTION
+              /// PAYMENT METHOD SELECTOR
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(20),
@@ -295,73 +275,189 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Upload Payment Screenshot",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const Text(
+                      'Select Payment Method',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 16),
 
-                    const SizedBox(height: 15),
+                    Row(
+                      children: [
 
-                    GestureDetector(
-                      onTap: pickScreenshot,
-                      child: Container(
-                        height: 170,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(16),
-                          image: _screenshotFile != null
-                              ? DecorationImage(
-                                  image: FileImage(_screenshotFile!),
-                                  fit: BoxFit.cover,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                paymentMethod = 'gcash';
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'gcash'
+                                    ? const Color(0xFF3B82F6)
+                                    : Colors.white12,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.qr_code_scanner,
+                                      color: Colors.white, size: 32),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'GCash',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                paymentMethod = 'cash';
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'cash'
+                                    ? const Color(0xFF3B82F6)
+                                    : Colors.white12,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.payments,
+                                      color: Colors.white, size: 32),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Cash',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              /// SHOW ONLY FOR GCASH
+              if (paymentMethod == 'gcash') ...[
+
+                const SizedBox(height: 30),
+
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: doctorData!['qrImageUrl'] != null
+                      ? Image.network(
+                          doctorData!['qrImageUrl'],
+                          height: 260,
+                          fit: BoxFit.contain,
+                        )
+                      : const SizedBox(
+                          height: 200,
+                          child: Center(child: Text("No QR available")),
+                        ),
+                ),
+
+                const SizedBox(height: 20),
+
+                const Text(
+                  "Open GCash app and scan this QR",
+                  style: TextStyle(color: Colors.white70),
+                ),
+
+                const SizedBox(height: 30),
+
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Upload Payment Screenshot",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      GestureDetector(
+                        onTap: pickScreenshot,
+                        child: Container(
+                          height: 170,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white12,
+                            borderRadius: BorderRadius.circular(16),
+                            image: _screenshotFile != null
+                                ? DecorationImage(
+                                    image: FileImage(_screenshotFile!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: _screenshotFile == null
+                              ? const Center(
+                                  child: Text(
+                                    "Tap to upload",
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
                                 )
                               : null,
                         ),
-                        child: _screenshotFile == null
-                            ? const Center(
-                                child: Text(
-                                  "Tap to upload",
-                                  style: TextStyle(color: Colors.white54),
-                                ),
-                              )
-                            : null,
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ],
 
-                    const SizedBox(height: 25),
+              const SizedBox(height: 30),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: loading ? null : confirmPayment,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: loading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                "Submit Payment",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: loading ? null : confirmPayment,
+                  child: loading
+                      ? const CircularProgressIndicator()
+                      : const Text("Submit Payment"),
                 ),
               ),
 

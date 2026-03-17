@@ -250,11 +250,10 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    CategoryDoctorsScreen(
+                                builder: (_) => CategoryDoctorsScreen(
+                                  categoryId: category.id,
                                   categoryName: data['name'],
-                                  description:
-                                      data['description'] ?? '',
+                                  description: data['description'] ?? '',
                                   imageUrl: data['imageUrl'],
                                 ),
                               ),
@@ -331,7 +330,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
-                        childAspectRatio: 0.70,
+                        childAspectRatio: 0.68,
                       ),
                       itemBuilder: (context, index) {
                         return _DoctorCard(
@@ -423,9 +422,37 @@ class _DoctorCard extends StatelessWidget {
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
+  String _getInitial(String name) {
+    if (name.trim().isEmpty) return 'D';
+    return name.trim()[0].toUpperCase();
+  }
+
+  bool isAvailableToday(Map<String, dynamic> data) {
+    if (data['availability'] == null) return false;
+
+    final availability = Map<String, dynamic>.from(data['availability']);
+
+    final today = DateFormat('EEEE').format(DateTime.now()).toLowerCase();
+
+    if (!availability.containsKey(today)) return false;
+
+    final dayData = availability[today];
+
+    if (dayData is Map) {
+      return dayData['enabled'] == true;
+    }
+
+    if (dayData is List) {
+      return dayData.isNotEmpty;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = doctor.data() as Map<String, dynamic>;
+    final bool availableToday = isAvailableToday(data);
 
     final double averageRating =
       (data['averageRating'] ?? 0).toDouble();
@@ -468,15 +495,17 @@ class _DoctorCard extends StatelessWidget {
             CircleAvatar(
               radius: 36,
               backgroundColor: Colors.grey.shade200,
-              backgroundImage:
-                  photoUrl != null
-                      ? NetworkImage(photoUrl)
-                      : null,
-              child: photoUrl == null
-                  ? const Icon(
-                      Icons.person,
-                      size: 36,
-                      color: Colors.grey,
+              backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                  ? NetworkImage(photoUrl)
+                  : null,
+              child: (photoUrl == null || photoUrl.isEmpty)
+                  ? Text(
+                      _getInitial(data['name'] ?? ''),
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: kDarkBlue,
+                      ),
                     )
                   : null,
             ),
@@ -490,14 +519,37 @@ class _DoctorCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              data['categoryName'] ?? '',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+            FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('categories')
+                  .where(
+                    FieldPath.documentId,
+                    whereIn: List<String>.from(data['categoryIds'] ?? []),
+                  )
+                  .get(),
+              builder: (context, snapshot) {
+
+                if (!snapshot.hasData) {
+                  return const SizedBox(height: 14);
+                }
+
+                final names = snapshot.data!.docs
+                    .map((e) => e['name'])
+                    .join(', ');
+
+                return Text(
+                  names,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
+                );
+              },
             ),
-            const Spacer(),
+            const SizedBox(height: 6),
             Text(
               '₱$formattedPrice',
               style: const TextStyle(
@@ -507,36 +559,26 @@ class _DoctorCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 6),
+           const SizedBox(height: 6),
+
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
+                color: availableToday
+                    ? Colors.green.withOpacity(0.15)
+                    : Colors.grey.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.star,
-                      color: Colors.orange, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    averageRating.toStringAsFixed(1),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '($totalRatings)',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
+              child: Text(
+                availableToday ? 'Available Today' : 'Not Available Today',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: availableToday ? Colors.green : Colors.grey,
+                ),
               ),
-            ),
+            )
           ],
         ),
       ),

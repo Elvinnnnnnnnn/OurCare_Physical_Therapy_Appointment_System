@@ -71,10 +71,19 @@ class DoctorHomeTab extends StatelessWidget {
                       CircleAvatar(
                         radius: 28,
                         backgroundColor: kWhite,
-                        backgroundImage: photoUrl != null
+                        backgroundImage: photoUrl != null && photoUrl.isNotEmpty
                             ? NetworkImage(photoUrl)
-                            : const AssetImage('assets/placeholder-400x400.jpg')
-                                as ImageProvider,
+                            : null,
+                        child: (photoUrl == null || photoUrl.isEmpty)
+                            ? Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : 'D',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: kDarkBlue,
+                                ),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 14),
                       Expanded(

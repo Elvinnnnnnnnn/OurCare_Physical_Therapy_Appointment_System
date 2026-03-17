@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'admin_appointments_screen.dart';
 import 'admin_doctor_list.dart';
 import 'admin_add_doctor.dart';
 import 'admin_category_list.dart';
@@ -17,13 +17,14 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _index = 0;
 
-  // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
   final List<Widget> pages = const [
     AdminDoctorList(),
+    AdminAppointmentsScreen(),
     AdminAddDoctor(),
     AdminCategoryList(),
     AdminUsersTab(),
@@ -56,38 +57,28 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Scaffold(
       backgroundColor: kWhite,
 
-      /// 🔝 ADMIN TOP BAR (optional – you can remove later)
-      appBar: AppBar(
-        backgroundColor: kWhite,
-        elevation: 0.8,
-        title: Text(
-          _title(),
-          style: const TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: kDarkBlue),
-            onPressed: logout,
-          ),
-        ],
-      ),
+      /// ❌ TOP NAVBAR REMOVED
 
-      /// 📄 BODY
       body: pages[_index],
 
-      /// 🔻 ADMIN BOTTOM NAV (DESIGN YOU WANT)
-      bottomNavigationBar: SafeArea(
-        top: false,
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Container(
-          decoration: const BoxDecoration(
-            color: kPrimaryBlue,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+          decoration: BoxDecoration(
+            color: kSoftBlue,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(26),
+              topRight: Radius.circular(26),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: BottomNavigationBar(
             currentIndex: _index,
@@ -95,14 +86,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             elevation: 0,
-            selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white70,
-            selectedFontSize: 12,
-            unselectedFontSize: 11,
+            selectedItemColor: kPrimaryBlue,
+            unselectedItemColor: kDarkBlue.withOpacity(0.6),
+            showSelectedLabels: true,
+            showUnselectedLabels: false,
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.medical_services),
                 label: 'Doctors',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.calendar_month),
+                label: 'Appointments',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_add_alt),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'reschedule_appointment_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CustomerScheduleTab extends StatefulWidget {
   const CustomerScheduleTab({super.key});
@@ -151,9 +152,25 @@ class AppointmentCard extends StatelessWidget {
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
+  Future<void> openGoogleReview() async {
+    final Uri url = Uri.parse(
+      'https://share.google/uiVInXqswFFcRRkdI',
+    );
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw 'Could not open review link';
+    }
+  }
+
+  String _getInitial(String name) {
+    if (name.trim().isEmpty) return 'D';
+    return name.trim()[0].toUpperCase();
+  }
+
   Color statusColor(String status) {
     if (status == 'approved') return Colors.green;
     if (status == 'cancelled') return Colors.red;
+    if (status == 'completed') return Colors.grey;
     return Colors.orange;
   }
 
@@ -164,7 +181,6 @@ class AppointmentCard extends StatelessWidget {
     return 'Pending';
   }
 
-  /// 🔹 FETCH DOCTOR PHOTO (MINIMAL)
   Future<String?> _loadDoctorPhoto(String doctorId) async {
     final snap = await FirebaseFirestore.instance
         .collection('doctors')
@@ -176,9 +192,29 @@ class AppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = appointment['status'];
-    final rating = appointment['rating'];
-    final doctorId = appointment['doctorId'];
+
+    final String doctorName =
+        (appointment['doctorName'] ?? 'Doctor').toString();
+
+    final String categoryName =
+        (appointment['categoryName'] ?? 'Service').toString();
+
+    final String status =
+        (appointment['status'] ?? 'pending').toString();
+
+    final String doctorId =
+        (appointment['doctorId'] ?? '').toString();
+
+    final String date =
+        (appointment['date'] ?? 'No date').toString();
+
+    final String time =
+        (appointment['time'] ?? 'No time').toString();
+
+    final String paymentMethod =
+        (appointment['paymentMethod'] ?? '').toString();
+
+    final String? paymentId = appointment['paymentId'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -197,46 +233,67 @@ class AppointmentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// HEADER
+
           Row(
             children: [
+
               FutureBuilder<String?>(
-                future: _loadDoctorPhoto(doctorId),
+                future: doctorId.isEmpty
+                    ? null
+                    : _loadDoctorPhoto(doctorId),
                 builder: (context, snapshot) {
+
                   final photoUrl = snapshot.data;
+
                   return CircleAvatar(
                     radius: 26,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: photoUrl != null
+                    backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
                         ? NetworkImage(photoUrl)
-                        : const AssetImage('assets/placeholder-400x400.jpg')
-                            as ImageProvider,
+                        : null,
+                    child: (photoUrl == null || photoUrl.isEmpty)
+                        ? Text(
+                            _getInitial(doctorName),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: kDarkBlue,
+                            ),
+                          )
+                        : null,
                   );
                 },
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
                     Text(
-                      appointment['doctorName'],
+                      doctorName,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         color: kDarkBlue,
                       ),
                     ),
+
                     Text(
-                      appointment['categoryName'],
+                      categoryName,
                       style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
               ),
+
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor(status).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -253,50 +310,91 @@ class AppointmentCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
 
-          /// DATE & TIME
-          Row(
-            children: [
-              const Icon(Icons.calendar_today,
-                  size: 16, color: kPrimaryBlue),
-              const SizedBox(width: 6),
-              Text(appointment['date']),
-              const SizedBox(width: 18),
-              const Icon(Icons.access_time,
-                  size: 16, color: kPrimaryBlue),
-              const SizedBox(width: 6),
-              Text(appointment['time']),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              paymentMethod == 'cash'
+                  ? 'Payment Method: Cash'
+                  : 'Payment Method: GCash',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Colors.blue,
+              ),
+            ),
           ),
 
           const SizedBox(height: 14),
 
-          /// VIEW PAYMENT SCREENSHOT
-          if (appointment['paymentId'] != null) ...[
+          Row(
+            children: [
+
+              const Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: kPrimaryBlue,
+              ),
+
+              const SizedBox(width: 6),
+
+              Text(date),
+
+              const SizedBox(width: 18),
+
+              const Icon(
+                Icons.access_time,
+                size: 16,
+                color: kPrimaryBlue,
+              ),
+
+              const SizedBox(width: 6),
+
+              Text(time),
+            ],
+          ),
+
+          if (paymentId != null) ...[
+
             const SizedBox(height: 14),
+
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.receipt_long, color: kPrimaryBlue),
+                icon: const Icon(
+                  Icons.receipt_long,
+                  color: kPrimaryBlue,
+                ),
                 label: const Text(
                   'View Payment Screenshot',
                   style: TextStyle(color: kPrimaryBlue),
                 ),
                 onPressed: () async {
-                  final paymentId = appointment['paymentId'];
 
-                  final paymentSnap = await FirebaseFirestore.instance
+                  final paymentSnap = await FirebaseFirestore
+                      .instance
                       .collection('payments')
                       .doc(paymentId)
                       .get();
 
                   final paymentData = paymentSnap.data();
-                  final screenshotUrl = paymentData?['screenshotUrl'];
+                  final screenshotUrl =
+                      paymentData?['screenshotUrl'];
 
                   if (screenshotUrl == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No screenshot found')),
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      const SnackBar(
+                        content: Text('No screenshot found'),
+                      ),
                     );
                     return;
                   }
@@ -316,7 +414,6 @@ class AppointmentCard extends StatelessWidget {
             ),
           ],
 
-          /// RESCHEDULE
           if (status == 'pending') ...[
             const SizedBox(height: 14),
             SizedBox(
@@ -331,10 +428,12 @@ class AppointmentCard extends StatelessWidget {
                 ),
                 child: const Text('Reschedule'),
                 onPressed: () {
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => RescheduleAppointmentScreen(
+                      builder: (_) =>
+                          RescheduleAppointmentScreen(
                         appointmentId: appointmentId,
                         appointmentData: appointment,
                       ),
@@ -345,126 +444,22 @@ class AppointmentCard extends StatelessWidget {
             ),
           ],
 
-          /// RATE DOCTOR
-            if (status == 'completed' && rating == null) ...[
+          if (status == 'completed') ...[
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              icon: const Icon(Icons.star, color: kPrimaryBlue),
-              label: const Text('Rate Doctor'),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => RateDoctorDialog(
-                    appointmentId: appointmentId,
-                    doctorId: doctorId,
-                  ),
-                );
-              },
-            ),
-          ],
-
-          /// SHOW RATING
-          if (rating != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: List.generate(
-                5,
-                (i) => Icon(
-                  i < rating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 18,
-                ),
+              icon: const Icon(
+                Icons.reviews,
+                color: kPrimaryBlue,
               ),
+              label: const Text(
+                'Leave a Review',
+                style: TextStyle(color: kPrimaryBlue),
+              ),
+              onPressed: openGoogleReview,
             ),
           ],
         ],
       ),
-    );
-  }
-}
-
-/// ===============================
-/// RATE DOCTOR DIALOG
-/// ===============================
-class RateDoctorDialog extends StatefulWidget {
-  final String appointmentId;
-  final String doctorId;
-
-  const RateDoctorDialog({
-    super.key,
-    required this.appointmentId,
-    required this.doctorId,
-  });
-
-  @override
-  State<RateDoctorDialog> createState() => _RateDoctorDialogState();
-}
-
-class _RateDoctorDialogState extends State<RateDoctorDialog> {
-  int rating = 5;
-  bool loading = false;
-
-  Future<void> submit() async {
-    setState(() => loading = true);
-
-    final apptRef = FirebaseFirestore.instance
-        .collection('appointments')
-        .doc(widget.appointmentId);
-
-    final doctorRef = FirebaseFirestore.instance
-        .collection('doctors')
-        .doc(widget.doctorId);
-
-    await FirebaseFirestore.instance.runTransaction((tx) async {
-      final doctorSnap = await tx.get(doctorRef);
-
-      final oldAvg =
-          (doctorSnap.data()?['averageRating'] ?? 0).toDouble();
-      final total =
-          (doctorSnap.data()?['totalRatings'] ?? 0) as int;
-
-      final newTotal = total + 1;
-      final newAvg = ((oldAvg * total) + rating) / newTotal;
-
-      tx.update(apptRef, {'rating': rating});
-      tx.update(doctorRef, {
-        'averageRating': newAvg,
-        'totalRatings': newTotal,
-      });
-    });
-
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Rate Doctor'),
-      content: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          5,
-          (i) => IconButton(
-            icon: Icon(
-              i < rating ? Icons.star : Icons.star_border,
-              color: Colors.amber,
-            ),
-            onPressed: () => setState(() => rating = i + 1),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: loading ? null : submit,
-          child: loading
-              ? const CircularProgressIndicator()
-              : const Text('Submit'),
-        ),
-      ],
     );
   }
 }
