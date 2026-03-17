@@ -22,3 +22,16 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+subprojects {
+    afterEvaluate {
+        if (this is com.android.build.gradle.AppExtension) {
+            buildTypes {
+                getByName("release") {
+                    isShrinkResources = false
+                    isMinifyEnabled = false
+                }
+            }
+        }
+    }
+}
