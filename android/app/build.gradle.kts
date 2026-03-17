@@ -23,6 +23,13 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+            "OurCare-Physical-Therapy.apk"
+        }
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.project"
@@ -36,8 +43,7 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
     }
