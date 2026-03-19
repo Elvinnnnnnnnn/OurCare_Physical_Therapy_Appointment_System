@@ -19,6 +19,7 @@ void main() async {
 
   await NotificationService.init();
   await NotificationService.requestPermissions();
+  await NotificationService.showInstantTest();
 
   runApp(const MyApp());
 }

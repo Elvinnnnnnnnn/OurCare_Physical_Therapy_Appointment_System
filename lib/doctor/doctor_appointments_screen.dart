@@ -649,7 +649,8 @@ class _DoctorAppointmentCard extends StatelessWidget {
           ),
 
           /// ACTIONS
-          if (appointment['paymentId'] != null) ...[
+          if (appointment['paymentId'] != null &&
+          appointment['paymentMethod'] != 'cash') ...[
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -748,7 +749,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
         (appointment['date'] ?? '').toString();
       final String rawTime =
         (appointment['time'] ?? '').toString();
-      final String startTime = rawTime.split('–').first.trim();
+      final String startTime = rawTime.split(' - ').first.trim();
       final parts = dateStr.split('-');
       final int year = int.parse(parts[0]);
       final int month = int.parse(parts[1]);
@@ -789,8 +790,36 @@ class _DoctorAppointmentCard extends StatelessWidget {
           'approvedAt': FieldValue.serverTimestamp(),
         });
       }
+
+      final paymentId = appointment['paymentId'];
+
+      if (paymentId != null) {
+        final paymentSnap = await FirebaseFirestore.instance
+            .collection('payments')
+            .doc(paymentId)
+            .get();
+
+        final paymentData = paymentSnap.data();
+
+        if (paymentData != null && paymentData['isReschedule'] == true) {
+
+          final originalId = paymentData['originalAppointmentId'];
+
+          if (originalId != null) {
+            await FirebaseFirestore.instance
+                .collection('appointments')
+                .doc(originalId)
+                .update({
+              'date': paymentData['date'],
+              'time': paymentData['time'],
+              'dateTime': paymentData['dateTime'],
+              'status': 'pending', // 👈 important
+            });
+          }
+        }
+      }
     }
-    
+
     if (newStatus == 'completed') {
       updateData.addAll({
         'completedAt': FieldValue.serverTimestamp(),

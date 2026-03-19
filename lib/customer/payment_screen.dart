@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String paymentId;
@@ -114,6 +115,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         .get();
 
     final data = paymentDoc.data();
+    final bool isReschedule = data?['isReschedule'] == true;
     if (data == null) {
       setState(() => loading = false);
       return;
@@ -158,6 +160,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     }
 
+    final startTime = data['time'].split(' - ').first;
+    final parsed = DateFormat('hh:mm a').parse(startTime);
+
+    final dateParts = data['date'].split('-');
+
+    final appointmentDateTime = DateTime(
+      int.parse(dateParts[0]),
+      int.parse(dateParts[1]),
+      int.parse(dateParts[2]),
+      parsed.hour,
+      parsed.minute,
+    );
+
+    if (!isReschedule) {
+
     await FirebaseFirestore.instance.collection('appointments').add({
       'userId': data['userId'],
       'patientName': userData?['fullName'] ?? 'Unknown',
@@ -169,6 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       'currency': data['currency'],
       'date': data['date'],
       'time': data['time'],
+      'dateTime': Timestamp.fromDate(appointmentDateTime),
       'status': 'pending',
       'paymentStatus':
           paymentMethod == 'gcash' ? 'for_verification' : 'cash_pending',
@@ -176,6 +194,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       'paymentId': widget.paymentId,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+  }
 
     setState(() => loading = false);
 

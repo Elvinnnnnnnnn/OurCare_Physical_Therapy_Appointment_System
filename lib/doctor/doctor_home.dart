@@ -65,7 +65,7 @@ class _DoctorHomeState extends State<DoctorHome> {
             selectedItemColor: kPrimaryBlue,
             unselectedItemColor: kDarkBlue.withOpacity(0.6),
             showSelectedLabels: true,
-            showUnselectedLabels: false,
+            showUnselectedLabels: true,
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),

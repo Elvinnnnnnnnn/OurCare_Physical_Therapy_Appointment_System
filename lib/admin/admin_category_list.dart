@@ -19,19 +19,6 @@ class AdminCategoryList extends StatelessWidget {
     return Scaffold(
       backgroundColor: kWhite,
 
-      appBar: AppBar(
-        title: const Text(
-          'Services',
-          style: TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: kWhite,
-        elevation: 0.6,
-        iconTheme: const IconThemeData(color: kDarkBlue),
-      ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimaryBlue,
         child: const Icon(Icons.add, color: Colors.white),

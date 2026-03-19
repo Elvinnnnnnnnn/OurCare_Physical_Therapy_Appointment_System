@@ -9,7 +9,7 @@ class NotificationService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Manila'));
+    tz.setLocalLocation(tz.local);
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const settings = InitializationSettings(android: android);
@@ -24,12 +24,37 @@ class NotificationService {
 
     await androidPlugin?.requestNotificationsPermission();
     await androidPlugin?.requestExactAlarmsPermission();
-  }
 
-  static Future<void> scheduleAllReminders({
-    required DateTime appointmentDateTime,
-  }) async {
-    final now = DateTime.now();
+    final granted = await androidPlugin?.areNotificationsEnabled();
+      print("NOTIFICATION PERMISSION: $granted");
+    }
+
+    static Future<void> scheduleAllReminders({
+      required DateTime appointmentDateTime,
+    }) async {
+      appointmentDateTime = appointmentDateTime.toLocal();
+
+      final now = DateTime.now();
+
+      await _notifications.zonedSchedule(
+    111,
+    'Reminder',
+    'Appointment Successful, wait for another reminder for your appointment',
+    tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10)),
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'appointment_channel',
+        'Appointment Reminders',
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
+    ),
+    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+  );
+
+  print("TEST NOTIFICATION SCHEDULED");
 
     print("NOW: $now");
     print("APPOINTMENT: $appointmentDateTime");
@@ -58,6 +83,28 @@ class NotificationService {
         "label": "10 minutes"
       },
     ];
+
+    if (reminders.every((r) => (r["time"] as DateTime).isBefore(now))) {
+      print("All reminders are in the past. Scheduling fallback.");
+
+      await _notifications.zonedSchedule(
+        baseId + 999,
+        'Appointment Reminder',
+        'Your appointment is very soon',
+        tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10)),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'appointment_channel',
+            'Appointment Reminders',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
 
     final formattedTime =
         DateFormat('hh:mm a').format(appointmentDateTime);
@@ -100,8 +147,8 @@ class NotificationService {
   static Future<void> showInstantTest() async {
     await _notifications.show(
       999,
-      'Test Notification',
-      'If you see this immediately, notifications work.',
+      'Welcome',
+      'You are all set to begin.',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'appointment_channel',

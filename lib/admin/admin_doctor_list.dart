@@ -15,19 +15,6 @@ class AdminDoctorList extends StatelessWidget {
     return Scaffold(
       backgroundColor: kWhite,
 
-      appBar: AppBar(
-        title: const Text(
-          'Doctors',
-          style: TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: kWhite,
-        elevation: 0.6,
-        iconTheme: const IconThemeData(color: kDarkBlue),
-      ),
-
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('doctors')

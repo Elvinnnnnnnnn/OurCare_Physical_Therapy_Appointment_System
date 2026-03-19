@@ -6,6 +6,7 @@ import 'admin_add_doctor.dart';
 import 'admin_category_list.dart';
 import 'admin_users_tab.dart';
 import 'admin_profile_tab.dart';
+import 'admin_calendar_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -27,6 +28,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     AdminAppointmentsScreen(),
     AdminAddDoctor(),
     AdminCategoryList(),
+    AdminCalendarScreen(),
     AdminUsersTab(),
     AdminProfileTab(),
   ];
@@ -40,12 +42,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       case 0:
         return 'Doctors';
       case 1:
-        return 'Add Doctor';
+        return 'Appointments';
       case 2:
-        return 'Categories';
+        return 'Add Doctor';
       case 3:
-        return 'Users';
+        return 'Categories';
       case 4:
+        return 'Calendar';
+      case 5:
+        return 'Users';
+      case 6:
         return 'Profile';
       default:
         return 'Admin';
@@ -57,68 +63,68 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Scaffold(
       backgroundColor: kWhite,
 
-      /// ❌ TOP NAVBAR REMOVED
+      appBar: AppBar(
+        backgroundColor: kWhite,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kDarkBlue),
+        title: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            _title(),
+            style: const TextStyle(
+              color: kDarkBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+
+      drawer: _buildDrawer(),
 
       body: pages[_index],
+    );
+  }
 
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: kSoftBlue,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(26),
-              topRight: Radius.circular(26),
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _index,
-            onTap: (i) => setState(() => _index = i),
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            selectedItemColor: kPrimaryBlue,
-            unselectedItemColor: kDarkBlue.withOpacity(0.6),
-            showSelectedLabels: true,
-            showUnselectedLabels: false,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.medical_services),
-                label: 'Doctors',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_month),
-                label: 'Appointments',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_add_alt),
-                label: 'Add',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.category),
-                label: 'Categories',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.people),
-                label: 'Users',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.admin_panel_settings),
-                label: 'Profile',
-              ),
+  Widget _buildDrawer() {
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.7,
+      child: Container(
+        color: kWhite,
+        child: SafeArea(
+          child: ListView(
+            children: [
+
+              const SizedBox(height: 20),
+
+              _drawerItem(Icons.medical_services, 'Doctors', 0),
+              _drawerItem(Icons.calendar_month, 'Appointments', 1),
+              _drawerItem(Icons.person_add_alt, 'Add Doctor', 2),
+              _drawerItem(Icons.category, 'Categories', 3),
+              _drawerItem(Icons.calendar_today, 'Calendar', 4),
+              _drawerItem(Icons.people, 'Users', 5),
+              _drawerItem(Icons.admin_panel_settings, 'Profile', 6),
+
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _drawerItem(IconData icon, String title, int index) {
+    return ListTile(
+      leading: Icon(icon, color: kPrimaryBlue),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: kDarkBlue,
+        ),
+      ),
+      onTap: () {
+        setState(() => _index = index);
+        Navigator.pop(context); // close drawer
+      },
     );
   }
 }

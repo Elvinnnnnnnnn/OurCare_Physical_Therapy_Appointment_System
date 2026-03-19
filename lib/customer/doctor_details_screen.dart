@@ -143,6 +143,21 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return slots;
   }
 
+  Future<String> getDoctorCategoryNames() async {
+    final ids = List<String>.from(widget.doctorData['categoryIds'] ?? []);
+
+    if (ids.isEmpty) return 'General';
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('categories')
+        .where(FieldPath.documentId, whereIn: ids)
+        .get();
+
+    final names = snapshot.docs.map((e) => e['name']).join(', ');
+
+    return names.isEmpty ? 'General' : names;
+  }
+
   Future<void> openChat() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -202,6 +217,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
 
     final doctor = widget.doctorData;
+    final categoryName = await getDoctorCategoryNames();
     final price = doctor['consultationPrice'] ?? 0;
 
     String? firstPaymentId;
@@ -224,7 +240,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         'userId': user.uid,
         'doctorId': widget.doctorId,
         'doctorName': doctor['name'],
-        'categoryName': doctor['categoryName'],
+        'categoryName': categoryName,
         'amount': price,
         'currency': 'PHP',
         'date': date,
@@ -247,12 +263,18 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     );
   }
 
+  String _getInitial(String name) {
+    if (name.trim().isEmpty) return 'U';
+    return name.trim()[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final doctor = widget.doctorData;
-    final rating = (doctor['averageRating'] ?? 0).toDouble();
     final price = (doctor['consultationPrice'] ?? 0).toInt();
     final formattedPrice = NumberFormat('#,###').format(price);
+    final String doctorName = widget.doctorData['name'] ?? '';
+    final String? doctorPhoto = widget.doctorData['photoUrl'];
 
     final times = _selectedDay == null
     ? <String>[]
@@ -289,13 +311,21 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 34,
+                    radius: 40,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: doctor['photoUrl'] != null
-                        ? NetworkImage(doctor['photoUrl'])
-                        : const AssetImage(
-                                'assets/placeholder-400x400.jpg')
-                            as ImageProvider,
+                    backgroundImage: (doctorPhoto != null && doctorPhoto.isNotEmpty)
+                        ? NetworkImage(doctorPhoto)
+                        : null,
+                    child: (doctorPhoto == null || doctorPhoto.isEmpty)
+                        ? Text(
+                            _getInitial(doctorName),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF001C99),
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -343,20 +373,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.star,
-                                color: Colors.orange,
-                                size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                  fontWeight:
-                                      FontWeight.w600),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -422,6 +438,13 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               ),
 
               enabledDayPredicate: (day) {
+                final today = DateTime.now();
+
+                final isPast = day.isBefore(
+                  DateTime(today.year, today.month, today.day),
+                );
+
+                if (isPast) return false;
 
                 final key = weekdayKey(day);
                 final rawData = availability[key];

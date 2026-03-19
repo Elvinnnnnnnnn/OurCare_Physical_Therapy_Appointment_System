@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class CustomerChatScreen extends StatefulWidget {
   final String chatId;
@@ -158,6 +159,15 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                     final isMe =
                         msg['senderId'] == user!.uid;
 
+                    final Timestamp? ts = msg['createdAt'];
+
+                    String time = '';
+
+                    if (ts != null) {
+                      final dt = ts.toDate();
+                      time = DateFormat('hh:mm a').format(dt); // 12-hour format
+                    }
+
                     return Align(
                       alignment: isMe
                           ? Alignment.centerRight
@@ -184,13 +194,27 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                                 isMe ? 4 : 18),
                           ),
                         ),
-                        child: Text(
-                          msg['text'],
-                          style: TextStyle(
-                            color:
-                                isMe ? kWhite : kDarkBlue,
-                            fontSize: 14,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              msg['text'],
+                              style: TextStyle(
+                                color: isMe ? kWhite : kDarkBlue,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              time,
+                              style: TextStyle(
+                                color: isMe
+                                    ? kWhite.withOpacity(0.7)
+                                    : kDarkBlue.withOpacity(0.6),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );

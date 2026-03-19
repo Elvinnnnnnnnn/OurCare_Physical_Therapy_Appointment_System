@@ -171,22 +171,53 @@ class CategoryDoctorsScreen extends StatelessWidget {
 
                             CircleAvatar(
                               radius: 30,
-                              backgroundImage: data['photoUrl'] != null
+                              backgroundColor: kSoftBlue,
+                              backgroundImage: (data['photoUrl'] != null && data['photoUrl'].toString().isNotEmpty)
                                   ? NetworkImage(data['photoUrl'])
                                   : null,
-                              child: data['photoUrl'] == null
-                                  ? const Icon(Icons.person)
+                              child: (data['photoUrl'] == null || data['photoUrl'].toString().isEmpty)
+                                  ? Text(
+                                      (data['name'] ?? 'D')
+                                              .toString()
+                                              .trim()
+                                              .isNotEmpty
+                                          ? data['name'][0].toUpperCase()
+                                          : 'D',
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: kDarkBlue,
+                                      ),
+                                    )
                                   : null,
                             ),
 
                             const SizedBox(width: 14),
 
                             Expanded(
-                              child: Text(
-                                data['name'] ?? 'Unknown Doctor',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+
+                                  Text(
+                                    data['name'] ?? 'Unknown Doctor',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: kDarkBlue,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 4),
+
+                                  const Text(
+                                    'Doctor',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: kGreyText,
+                                    ),
+                                  ),
+
+                                ],
                               ),
                             ),
 

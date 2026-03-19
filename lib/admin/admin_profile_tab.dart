@@ -152,19 +152,6 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     return Scaffold(
       backgroundColor: kWhite,
 
-      appBar: AppBar(
-        title: const Text(
-          'Admin Profile',
-          style: TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: kWhite,
-        elevation: 0.6,
-        iconTheme: const IconThemeData(color: kDarkBlue),
-      ),
-
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

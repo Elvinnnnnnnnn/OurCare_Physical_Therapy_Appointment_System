@@ -52,6 +52,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
     super.initState();
 
     _saveFcmToken();
+    _checkExistingApprovedAppointments();
     _listenForApprovedAppointments();
 
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
@@ -80,14 +81,25 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
       for (var doc in snapshot.docs) {
         final data = doc.data();
 
-        if (data['appointmentAt'] == null) continue;
-        if (data['reminderScheduled'] == true) continue;
+        if (data['reminderScheduled'] == true) {
+          print("Already scheduled, skipping");
+          continue;
+        }
 
+        if (data['appointmentAt'] == null) continue;
         final Timestamp ts = data['appointmentAt'];
         final DateTime appointmentDateTime = ts.toDate();
 
-        print("NOW: ${DateTime.now()}");
-        print("APPOINTMENT: $appointmentDateTime");
+        if (appointmentDateTime.difference(DateTime.now()).inMinutes < 1) {
+        print("Too late to schedule");
+        continue;
+}
+
+        if (appointmentDateTime.isBefore(DateTime.now())) continue;
+
+        print("FOUND APPROVED APPOINTMENT");
+
+        await NotificationService.requestPermissions();
 
         await NotificationService.scheduleAllReminders(
           appointmentDateTime: appointmentDateTime,
@@ -103,6 +115,54 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
         print("Reminders scheduled on patient device");
       }
     });
+  }
+
+  Future<void> _checkExistingApprovedAppointments() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('appointments')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'approved')
+        .get();
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['reminderScheduled'] == true) {
+        print("Already scheduled, skipping");
+        continue;
+      }
+
+      if (data['appointmentAt'] == null) continue;
+      final Timestamp ts = data['appointmentAt'];
+      final DateTime appointmentDateTime = ts.toDate();
+
+      if (appointmentDateTime.difference(DateTime.now()).inMinutes < 1) {
+      print("Too late to schedule");
+      continue;
+}
+
+      if (appointmentDateTime.isBefore(DateTime.now())) continue;
+
+      print("FOUND EXISTING APPROVED APPOINTMENT");
+
+      await NotificationService.requestPermissions();
+
+      await NotificationService.scheduleAllReminders(
+        appointmentDateTime: appointmentDateTime,
+      );
+
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(doc.id)
+          .update({
+        'reminderScheduled': true,
+      });
+
+      print("Reminders scheduled from existing data");
+      
+    }
   }
 
   @override
@@ -138,7 +198,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     });
                   },
                   decoration: const InputDecoration(
-                    hintText: 'Search doctors, services...',
+                    hintText: 'Search doctors or services',
                     prefixIcon: Icon(Icons.search),
                     border: InputBorder.none,
                     contentPadding:
@@ -225,11 +285,20 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                       );
                     }
 
-                    final categories = snapshot.data!.docs;
+                    final allCategories = snapshot.data!.docs;
+
+                    final categories = allCategories.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      final name =
+                          (data['name'] ?? '').toString().toLowerCase();
+
+                      return _searchText.isEmpty || name.contains(_searchText);
+                    }).toList();
 
                     if (categories.isEmpty) {
                       return const Center(
-                        child: Text('No services'),
+                        child: Text('No matching services'),
                       );
                     }
 
@@ -421,6 +490,7 @@ class _DoctorCard extends StatelessWidget {
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   String _getInitial(String name) {
     if (name.trim().isEmpty) return 'D';

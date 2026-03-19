@@ -214,18 +214,6 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kWhite,
-      appBar: AppBar(
-        title: const Text(
-          'Add Doctor',
-          style: TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: kWhite,
-        elevation: 0.6,
-        iconTheme: const IconThemeData(color: kDarkBlue),
-      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

@@ -703,7 +703,8 @@ class _AdminAppointmentCard extends StatelessWidget {
             ],
           ),
 
-          if (appointment['paymentId'] != null) ...[
+          if (appointment['paymentId'] != null &&
+          appointment['paymentMethod'] != 'cash') ...[
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,

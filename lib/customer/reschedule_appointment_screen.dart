@@ -4,15 +4,19 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'payment_screen.dart';
 
 class RescheduleAppointmentScreen extends StatefulWidget {
   final String appointmentId;
   final Map<String, dynamic> appointmentData;
 
+  final bool requirePayment;
+
   const RescheduleAppointmentScreen({
     super.key,
     required this.appointmentId,
     required this.appointmentData,
+    required this.requirePayment,
   });
 
   @override
@@ -167,8 +171,7 @@ class _RescheduleAppointmentScreenState
 
     final doctorId = widget.appointmentData['doctorId'];
 
-    final date =
-        '${_selectedDay!.year}-${_selectedDay!.month}-${_selectedDay!.day}';
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
 
     final existing = await FirebaseFirestore.instance
         .collection('appointments')
@@ -199,23 +202,66 @@ class _RescheduleAppointmentScreenState
       parsed.minute,
     );
 
-    await FirebaseFirestore.instance
-        .collection('appointments')
-        .doc(widget.appointmentId)
-        .update({
+   if (widget.requirePayment) {
+
+    final paymentRef = await FirebaseFirestore.instance
+        .collection('payments')
+        .add({
+      'userId': widget.appointmentData['userId'] ?? '',
+      'doctorId': widget.appointmentData['doctorId'] ?? '',
+      'doctorName': widget.appointmentData['doctorName'] ?? '',
+      'categoryName': widget.appointmentData['categoryName'] ?? '',
+      'amount': widget.appointmentData['amountPaid'] ?? 0,
+      'currency': 'PHP',
       'date': date,
       'time': _selectedTime,
       'dateTime': Timestamp.fromDate(newDateTime),
       'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'isReschedule': true,
+      'originalAppointmentId': widget.appointmentId,
     });
 
-    if (!mounted) return;
+    // ✅ LINK PAYMENT
+    await FirebaseFirestore.instance
+        .collection('appointments')
+        .doc(widget.appointmentId)
+        .update({
+      'paymentId': paymentRef.id,
+      'status': 'pending', // 🔥 THIS FIXES YOUR ISSUE
+    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment rescheduled')),
+  if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          paymentId: paymentRef.id,
+        ),
+      ),
     );
 
-    Navigator.pop(context);
+    return;
+  }
+
+  await FirebaseFirestore.instance
+      .collection('appointments')
+      .doc(widget.appointmentId)
+      .update({
+    'date': date,
+    'time': _selectedTime,
+    'dateTime': Timestamp.fromDate(newDateTime),
+    'status': 'pending',
+  });
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Appointment rescheduled')),
+  );
+
+  Navigator.pop(context);
   }
 
   @override
@@ -313,6 +359,13 @@ class _RescheduleAppointmentScreenState
               ),
 
               enabledDayPredicate: (day) {
+                final today = DateTime.now();
+
+                final isPast = day.isBefore(
+                  DateTime(today.year, today.month, today.day),
+                );
+
+                if (isPast) return false;
 
                 final key = weekdayKey(day);
                 final rawData = availability[key];
@@ -419,7 +472,9 @@ class _RescheduleAppointmentScreenState
                   padding:
                       const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: rescheduleAppointment,
+                onPressed: (_selectedDay != null && _selectedTime != null)
+                  ? rescheduleAppointment
+                  : null,
                 child: const Text(
                   'Confirm Reschedule',
                   style: TextStyle(color: kWhite),

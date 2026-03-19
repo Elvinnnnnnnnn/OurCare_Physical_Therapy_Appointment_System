@@ -14,7 +14,7 @@ class CustomerScheduleTab extends StatefulWidget {
 class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
   int selectedTab = 0;
 
-  final tabs = ['Upcoming', 'Completed', 'Cancelled'];
+  final tabs = ['Pending', 'Upcoming', 'Completed', 'Cancelled'];
 
   // Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
@@ -22,10 +22,11 @@ class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
 
-  String? getStatusFilter() {
-    if (selectedTab == 1) return 'completed';
-    if (selectedTab == 2) return 'cancelled';
-    return null; // Upcoming
+  String getStatusFilter() {
+    if (selectedTab == 0) return 'pending';
+    if (selectedTab == 1) return 'approved';
+    if (selectedTab == 2) return 'completed';
+    return 'cancelled';
   }
 
   @override
@@ -95,10 +96,7 @@ class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
               stream: FirebaseFirestore.instance
                   .collection('appointments')
                   .where('userId', isEqualTo: user!.uid)
-                  .where('status',
-                    whereIn: selectedTab == 0
-                        ? ['pending', 'approved']
-                        : [getStatusFilter()])
+                  .where('status', isEqualTo: getStatusFilter())
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData ||
@@ -190,6 +188,81 @@ class AppointmentCard extends StatelessWidget {
     return snap.data()?['photoUrl'];
   }
 
+  bool canCancel(String status, DateTime appointmentDateTime, DateTime createdAt) {
+    if (status == 'pending') return true;
+
+    final now = DateTime.now();
+
+    final totalDaysBetween =
+        appointmentDateTime.difference(createdAt).inDays;
+
+    final daysBeforeNow =
+        appointmentDateTime.difference(now).inDays;
+
+    final hoursBeforeNow =
+        appointmentDateTime.difference(now).inHours;
+
+    if (totalDaysBetween > 7) {
+      return daysBeforeNow > 7;
+    } else {
+      return hoursBeforeNow > 24;
+    }
+  }
+
+  bool needsPaymentForReschedule(DateTime appointmentDateTime, DateTime createdAt) {
+    final now = DateTime.now();
+
+    final totalDaysBetween =
+        appointmentDateTime.difference(createdAt).inDays;
+
+    final daysBeforeNow =
+        appointmentDateTime.difference(now).inDays;
+
+    final hoursBeforeNow =
+        appointmentDateTime.difference(now).inHours;
+
+    // Rule A: booked early
+    if (totalDaysBetween > 7) {
+      // inside 7 days → need payment
+      return daysBeforeNow <= 7;
+    }
+
+    // Rule B: booked late
+    else {
+      // inside 24 hours → need payment
+      return hoursBeforeNow <= 24;
+    }
+  }
+
+  String getCancelMessage(DateTime appointmentDateTime, DateTime createdAt) {
+    final now = DateTime.now();
+
+    final totalDaysBetween =
+        appointmentDateTime.difference(createdAt).inDays;
+
+    final daysBeforeNow =
+        appointmentDateTime.difference(now).inDays;
+
+    final hoursBeforeNow =
+        appointmentDateTime.difference(now).inHours;
+
+    // Rule A: booked early
+    if (totalDaysBetween > 7) {
+      if (daysBeforeNow <= 7) {
+        return "Cannot cancel within 7 days of appointment";
+      }
+    }
+
+    // Rule B: booked late
+    else {
+      if (hoursBeforeNow <= 24) {
+        return "Cannot cancel within 24 hours of appointment";
+      }
+    }
+
+    return "";
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -210,6 +283,24 @@ class AppointmentCard extends StatelessWidget {
 
     final String time =
         (appointment['time'] ?? 'No time').toString();
+
+    final Timestamp? dateTimeStamp = appointment['dateTime'];
+    final Timestamp? createdAtStamp = appointment['createdAt'];
+
+    if (dateTimeStamp == null || createdAtStamp == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: const Text('Invalid appointment data'),
+      );
+    }
+
+    final appointmentDateTime = dateTimeStamp.toDate();
+    final createdAt = createdAtStamp.toDate();
+
+    final allowCancel = canCancel(status, appointmentDateTime, createdAt);
+    final requirePayment = status == 'pending'
+      ? false
+      : needsPaymentForReschedule(appointmentDateTime, createdAt);
 
     final String paymentMethod =
         (appointment['paymentMethod'] ?? '').toString();
@@ -362,7 +453,7 @@ class AppointmentCard extends StatelessWidget {
             ],
           ),
 
-          if (paymentId != null) ...[
+          if (paymentId != null && paymentMethod != 'cash') ...[
 
             const SizedBox(height: 14),
 
@@ -414,7 +505,7 @@ class AppointmentCard extends StatelessWidget {
             ),
           ],
 
-          if (status == 'pending') ...[
+          if (status == 'pending' || status == 'approved') ...[
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
@@ -426,16 +517,19 @@ class AppointmentCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Reschedule'),
+                child: Text(
+                  status == 'pending'
+                      ? 'Reschedule'
+                      : (requirePayment ? 'Reschedule (with payment)' : 'Reschedule'),
+                ),
                 onPressed: () {
-
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          RescheduleAppointmentScreen(
+                      builder: (_) => RescheduleAppointmentScreen(
                         appointmentId: appointmentId,
                         appointmentData: appointment,
+                        requirePayment: requirePayment,
                       ),
                     ),
                   );
@@ -443,6 +537,60 @@ class AppointmentCard extends StatelessWidget {
               ),
             ),
           ],
+
+          if (status != 'pending' && requirePayment)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: const Text(
+                "Rescheduling requires new payment",
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
+          if (status == 'pending' || status == 'approved') ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                child: const Text('Cancel Appointment'),
+                onPressed: allowCancel
+                    ? () async {
+                        await FirebaseFirestore.instance
+                            .collection('appointments')
+                            .doc(appointmentId)
+                            .update({'status': 'cancelled'});
+                      }
+                    : null,
+              ),
+            ),
+          ],
+
+          if (status == 'pending')
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: const Text(
+                "Waiting for doctor approval",
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
+          if (status == 'approved' && !allowCancel)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                getCancelMessage(appointmentDateTime, createdAt),
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ),
 
           if (status == 'completed') ...[
             const SizedBox(height: 10),
