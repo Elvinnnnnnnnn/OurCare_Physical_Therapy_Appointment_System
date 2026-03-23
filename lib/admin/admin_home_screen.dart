@@ -7,6 +7,8 @@ import 'admin_category_list.dart';
 import 'admin_users_tab.dart';
 import 'admin_profile_tab.dart';
 import 'admin_calendar_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../home/notifications_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -67,6 +69,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         backgroundColor: kWhite,
         elevation: 0,
         iconTheme: const IconThemeData(color: kDarkBlue),
+
         title: Align(
           alignment: Alignment.centerRight,
           child: Text(
@@ -77,6 +80,62 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ),
         ),
+
+        actions: [
+
+          /// 🔔 NOTIFICATION ICON
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+              .where('read', isEqualTo: false)
+              .snapshots(),
+            builder: (context, snapshot) {
+
+              int count = snapshot.data?.docs.length ?? 0;
+
+              return Stack(
+                children: [
+
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: kDarkBlue),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  if (count > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(width: 8),
+
+        ],
       ),
 
       drawer: _buildDrawer(),

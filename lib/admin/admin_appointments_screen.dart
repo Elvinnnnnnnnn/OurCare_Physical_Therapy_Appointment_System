@@ -12,13 +12,15 @@ class AdminAppointmentsScreen extends StatefulWidget {
       _AdminAppointmentsScreenState();
 }
 
-    enum ReportRange {
-      today,
-      week,
-      month,
-      year,
-      all,
-    }
+  enum ReportRange {
+    today,
+    week,
+    month,
+    year,
+    all,
+  }
+
+  String searchQuery = "";
 
 class _AdminAppointmentsScreenState
     extends State<AdminAppointmentsScreen> {
@@ -376,6 +378,28 @@ class _AdminAppointmentsScreenState
       body: Column(
         children: [
 
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value.toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search patient name...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
           /// TABS
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -446,7 +470,14 @@ class _AdminAppointmentsScreenState
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final appointments = snapshot.data!.docs;
+                final allAppointments = snapshot.data!.docs;
+
+                final appointments = allAppointments.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['patientName'] ?? '').toString().toLowerCase();
+
+                  return name.contains(searchQuery);
+                }).toList();
 
                 if (appointments.isEmpty) {
                   return const Center(
@@ -799,11 +830,18 @@ class _AdminAppointmentCard extends StatelessWidget {
   }
 
   Future<void> _updateStatus(String newStatus) async {
+
+    final Map<String, dynamic> updateData = {
+      'status': newStatus,
+    };
+
+    if (newStatus == 'approved') {
+      updateData['approvedBy'] = 'admin';
+    }
+
     await FirebaseFirestore.instance
         .collection('appointments')
         .doc(appointmentId)
-        .update({
-      'status': newStatus,
-    });
+        .update(updateData);
   }
 }

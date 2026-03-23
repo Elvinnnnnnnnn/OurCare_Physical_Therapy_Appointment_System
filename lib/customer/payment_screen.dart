@@ -160,20 +160,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     }
 
-    final startTime = data['time'].split(' - ').first;
-    final parsed = DateFormat('hh:mm a').parse(startTime);
-
-    final dateParts = data['date'].split('-');
-
-    final appointmentDateTime = DateTime(
-      int.parse(dateParts[0]),
-      int.parse(dateParts[1]),
-      int.parse(dateParts[2]),
-      parsed.hour,
-      parsed.minute,
-    );
-
     if (!isReschedule) {
+
+    final times = List<String>.from(data['times'] ?? []);
+
+for (final time in times) {
+
+  final startTime = time.split(' - ').first;
+  final parsed = DateFormat('hh:mm a').parse(startTime);
+
+  final dateParts = data['date'].split('-');
+
+  final appointmentDateTime = DateTime(
+    int.parse(dateParts[0]),
+    int.parse(dateParts[1]),
+    int.parse(dateParts[2]),
+    parsed.hour,
+    parsed.minute,
+  );
 
     await FirebaseFirestore.instance.collection('appointments').add({
       'userId': data['userId'],
@@ -182,18 +186,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
       'doctorId': data['doctorId'],
       'doctorName': data['doctorName'],
       'categoryName': data['categoryName'],
-      'amountPaid': enteredAmount,
+      'amountPaid': data['amount'],
       'currency': data['currency'],
       'date': data['date'],
-      'time': data['time'],
+      'time': time,
       'dateTime': Timestamp.fromDate(appointmentDateTime),
       'status': 'pending',
-      'paymentStatus':
-          paymentMethod == 'gcash' ? 'for_verification' : 'cash_pending',
+      'paymentStatus': paymentMethod == 'gcash'
+          ? 'for_verification'
+          : 'cash_pending',
       'paymentMethod': paymentMethod,
       'paymentId': widget.paymentId,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+  }
 
   }
 

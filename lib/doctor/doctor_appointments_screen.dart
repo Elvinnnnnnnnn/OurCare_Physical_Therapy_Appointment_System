@@ -745,6 +745,10 @@ class _DoctorAppointmentCard extends StatelessWidget {
     };
 
     if (newStatus == 'approved') {
+      updateData['approvedBy'] = 'doctor';
+    }
+
+    if (newStatus == 'approved') {
       final String dateStr =
         (appointment['date'] ?? '').toString();
       final String rawTime =

@@ -399,7 +399,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
-                        childAspectRatio: 0.68,
+                        childAspectRatio: 0.75,
                       ),
                       itemBuilder: (context, index) {
                         return _DoctorCard(
@@ -580,12 +580,16 @@ class _DoctorCard extends StatelessWidget {
                   : null,
             ),
             const SizedBox(height: 12),
-            Text(
-              data['name'] ?? 'Unknown Doctor',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: kDarkBlue,
+           Flexible(
+              child: Text(
+                data['name'] ?? 'Unknown Doctor',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: kDarkBlue,
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -607,14 +611,16 @@ class _DoctorCard extends StatelessWidget {
                     .map((e) => e['name'])
                     .join(', ');
 
-                return Text(
-                  names,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
+                return Flexible(
+                  child: Text(
+                    names,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
                   ),
                 );
               },
@@ -631,24 +637,27 @@ class _DoctorCard extends StatelessWidget {
 
            const SizedBox(height: 6),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: availableToday
-                    ? Colors.green.withOpacity(0.15)
-                    : Colors.grey.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                availableToday ? 'Available Today' : 'Not Available Today',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: availableToday ? Colors.green : Colors.grey,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: availableToday
+                      ? Colors.green.withOpacity(0.15)
+                      : Colors.grey.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  availableToday ? 'Available Today' : 'Not Available Today',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: availableToday ? Colors.green : Colors.grey,
+                  ),
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),

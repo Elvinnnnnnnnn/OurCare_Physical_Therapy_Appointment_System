@@ -251,35 +251,102 @@ exports.onAppointmentStatusChange = onDocumentUpdated(
     region: "us-central1",
   },
   async (event) => {
+
     const before = event.data.before?.data();
     const after = event.data.after?.data();
 
     if (!before || !after) return;
     if (before.status === after.status) return;
 
-    if (!["approved", "cancelled"].includes(after.status)) return;
+    const appointmentId = event.params.appointmentId;
 
-    const isApproved = after.status === "approved";
+    // =========================
+    // CUSTOMER
+    // =========================
+    if (["approved", "cancelled"].includes(after.status)) {
 
-    const title = isApproved
-      ? "Appointment Approved"
-      : "Appointment Cancelled";
+      let title = "";
+      let body = "";
 
-    const body = isApproved
-      ? `Dr. ${after.doctorName} approved your appointment on ${after.date} at ${after.time}.`
-      : `Dr. ${after.doctorName} cancelled your appointment scheduled on ${after.date}.`;
+      // APPROVED
+      if (after.status === "approved") {
 
-    await db.collection("notifications").add({
-      userId: after.userId,
-      title,
-      body,
-      read: false,
-      type: "appointment_status",
-      appointmentId: event.params.appointmentId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+        if (after.approvedBy === "doctor") {
+          title = "Appointment Approved";
+          body = `Dr. ${after.doctorName} approved your appointment on ${after.date} at ${after.time}`;
+        }
 
-    console.log("✅ Status notification created");
+        if (after.approvedBy === "admin") {
+          title = "Appointment Approved";
+          body = `Admin approved your appointment on ${after.date} at ${after.time}`;
+        }
+      }
+
+      // CANCELLED
+      if (after.status === "cancelled") {
+        title = "Appointment Cancelled";
+        body = `Your appointment was cancelled`;
+      }
+
+      await db.collection("notifications").add({
+        userId: after.userId,
+        title: title,
+        body: body,
+        read: false,
+        type: "customer",
+        appointmentId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    // =========================
+    // DOCTOR APPROVED → ADMIN ONLY
+    // =========================
+    if (after.status === "approved" && after.approvedBy === "doctor") {
+
+      const admins = await db
+        .collection("users")
+        .where("role", "==", "admin")
+        .get();
+
+      for (const adminDoc of admins.docs) {
+        await db.collection("notifications").add({
+          userId: adminDoc.id,
+          title: "Doctor Approved Appointment",
+          body: `${after.doctorName} approved an appointment`,
+          read: false,
+          type: "admin",
+          appointmentId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    // =========================
+    // ADMIN APPROVED → DOCTOR ONLY
+    // =========================
+    if (after.status === "approved" && after.approvedBy === "admin") {
+
+      const doctorDoc = await db
+        .collection("doctors")
+        .doc(after.doctorId)
+        .get();
+
+      const doctorUserId = doctorDoc.data()?.userId;
+
+      if (doctorUserId) {
+        await db.collection("notifications").add({
+          userId: doctorUserId,
+          title: "Admin Approved Appointment",
+          body: `Admin approved your appointment`,
+          read: false,
+          type: "doctor",
+          appointmentId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    console.log("Notifications fixed v2");
   }
 );
 

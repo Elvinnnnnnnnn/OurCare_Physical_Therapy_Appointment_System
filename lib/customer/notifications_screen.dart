@@ -20,6 +20,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _markAllAsRead();
   }
 
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return '';
+
+    final date = (timestamp as Timestamp).toDate();
+
+    int hour = date.hour;
+    final int minute = date.minute;
+
+    final period = hour >= 12 ? 'PM' : 'AM';
+
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+
+    final minuteStr = minute.toString().padLeft(2, '0');
+
+    return "${date.month}/${date.day}/${date.year} $hour:$minuteStr $period";
+  }
+
   Future<void> _markAllAsRead() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -87,31 +105,79 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: kPrimaryBlue.withOpacity(0.05),
+                  color: notif['read'] == true
+                      ? Colors.grey.shade100
+                      : kPrimaryBlue.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: notif['read'] == true
+                        ? Colors.grey.shade300
+                        : kPrimaryBlue.withOpacity(0.3),
+                  ),
                 ),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      notif['title'] ?? '',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: kDarkBlue,
+
+                    /// ICON
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: kPrimaryBlue.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.notifications,
+                        color: kPrimaryBlue,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      notif['body'] ?? '',
-                      style:
-                          const TextStyle(color: Colors.black87),
+
+                    const SizedBox(width: 12),
+
+                    /// TEXT
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          Text(
+                            notif['title'] ?? '',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: kDarkBlue,
+                              fontSize: 14,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            notif['body'] ?? '',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 13,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+                            _formatDate(notif['createdAt']),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               );
-            },
+                          },
           );
         },
       ),

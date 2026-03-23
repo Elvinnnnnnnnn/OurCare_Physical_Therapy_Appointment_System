@@ -219,45 +219,30 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     final doctor = widget.doctorData;
     final categoryName = await getDoctorCategoryNames();
     final price = doctor['consultationPrice'] ?? 0;
+    final totalAmount = price * _selectedTimes.length;
 
     String? firstPaymentId;
 
-    for (final time in _selectedTimes) {
-
-      final startTime = time.split(' - ').first;
-      final parsed = DateFormat('hh:mm a').parse(startTime);
-
-      final appointmentDateTime = DateTime(
-        _selectedDay!.year,
-        _selectedDay!.month,
-        _selectedDay!.day,
-        parsed.hour,
-        parsed.minute,
-      );
-
-      final paymentRef =
-          await FirebaseFirestore.instance.collection('payments').add({
+    final paymentRef =
+      await FirebaseFirestore.instance.collection('payments').add({
         'userId': user.uid,
         'doctorId': widget.doctorId,
         'doctorName': doctor['name'],
         'categoryName': categoryName,
-        'amount': price,
+        'amount': totalAmount,
         'currency': 'PHP',
         'date': date,
-        'time': time,
-        'dateTime': Timestamp.fromDate(appointmentDateTime),
+        'times': _selectedTimes, // IMPORTANT (list of times)
+        'dateTime': Timestamp.now(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      firstPaymentId ??= paymentRef.id;
-    }
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PaymentScreen(
-          paymentId: firstPaymentId!,
+          paymentId: paymentRef.id,
         ),
       ),
     );
@@ -303,83 +288,130 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: kSoftBlue,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.grey.shade200,
-                    backgroundImage: (doctorPhoto != null && doctorPhoto.isNotEmpty)
-                        ? NetworkImage(doctorPhoto)
-                        : null,
-                    child: (doctorPhoto == null || doctorPhoto.isEmpty)
-                        ? Text(
-                            _getInitial(doctorName),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF001C99),
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          doctor['name'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: kDarkBlue,
-                          ),
-                        ),
-                        FutureBuilder<QuerySnapshot>(
-                          future: FirebaseFirestore.instance
-                              .collection('categories')
-                              .where(
-                                FieldPath.documentId,
-                                whereIn: List<String>.from(doctor['categoryIds'] ?? []),
+
+                  /// TOP ROW
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      CircleAvatar(
+                        radius: 36,
+                        backgroundColor: Colors.grey.shade200,
+                        backgroundImage: (doctorPhoto != null && doctorPhoto.isNotEmpty)
+                            ? NetworkImage(doctorPhoto)
+                            : null,
+                        child: (doctorPhoto == null || doctorPhoto.isEmpty)
+                            ? Text(
+                                _getInitial(doctorName),
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: kDarkBlue,
+                                ),
                               )
-                              .get(),
-                          builder: (context, snapshot) {
+                            : null,
+                      ),
 
-                            if (!snapshot.hasData) {
-                              return const Text('');
-                            }
+                      const SizedBox(width: 12),
 
-                            final names = snapshot.data!.docs
-                                .map((e) => e['name'])
-                                .join(', ');
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
 
-                            return Text(
-                              names.isEmpty ? 'No category' : names,
-                              style: const TextStyle(color: kDarkBlue),
-                            );
-                          },
+                            /// NAME
+                            Text(
+                              doctor['name'],
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: kDarkBlue,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            /// CATEGORY
+                            FutureBuilder<QuerySnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('categories')
+                                  .where(
+                                    FieldPath.documentId,
+                                    whereIn: List<String>.from(doctor['categoryIds'] ?? []),
+                                  )
+                                  .get(),
+                              builder: (context, snapshot) {
+
+                                if (!snapshot.hasData) {
+                                  return const SizedBox();
+                                }
+
+                                final names = snapshot.data!.docs
+                                    .map((e) => e['name'])
+                                    .join(', ');
+
+                                return Text(
+                                  names,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                );
+                              },
+                            ),
+
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Consultation Fee: ₱$formattedPrice',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryBlue,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                    ),
+                      ),
+
+                      IconButton(
+                        icon: const Icon(Icons.message, color: kPrimaryBlue),
+                        onPressed: openChat,
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.message,
-                        color: kPrimaryBlue),
-                    onPressed: openChat,
+
+                  const SizedBox(height: 14),
+
+                  /// PRICE (separate, clearer)
+                  Row(
+                    children: [
+                      const Icon(Icons.payments, size: 16, color: kPrimaryBlue),
+                      const SizedBox(width: 6),
+                      Text(
+                        '₱$formattedPrice',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: kPrimaryBlue,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  /// DESCRIPTION
+                  Text(
+                    doctor['aboutMe'] ?? 'No description available',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
