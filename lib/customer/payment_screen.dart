@@ -20,6 +20,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   File? _screenshotFile;
   final ImagePicker _picker = ImagePicker();
+  String cashType = 'walk_in';
 
   Map<String, dynamic>? paymentData;
   Map<String, dynamic>? doctorData;
@@ -154,55 +155,55 @@ class _PaymentScreenState extends State<PaymentScreen> {
           .doc(widget.paymentId)
           .update({
         'paymentMethod': 'cash',
+        'cashType': cashType,
         'status': 'cash_pending',
         'amountPaid': enteredAmount,
       });
 
     }
-
-    if (!isReschedule) {
-
+    
     final times = List<String>.from(data['times'] ?? []);
+    final totalAmount = data['amount'];
+    final timesCount = times.length;
+    final pricePerSlot = totalAmount / timesCount;
 
-for (final time in times) {
+    for (final time in times) {
 
-  final startTime = time.split(' - ').first;
-  final parsed = DateFormat('hh:mm a').parse(startTime);
+      final startTime = time.split(' - ').first;
+      final parsed = DateFormat('hh:mm a').parse(startTime);
 
-  final dateParts = data['date'].split('-');
+      final dateParts = data['date'].split('-');
 
-  final appointmentDateTime = DateTime(
-    int.parse(dateParts[0]),
-    int.parse(dateParts[1]),
-    int.parse(dateParts[2]),
-    parsed.hour,
-    parsed.minute,
-  );
+      final appointmentDateTime = DateTime(
+        int.parse(dateParts[0]),
+        int.parse(dateParts[1]),
+        int.parse(dateParts[2]),
+        parsed.hour,
+        parsed.minute,
+      );
 
-    await FirebaseFirestore.instance.collection('appointments').add({
-      'userId': data['userId'],
-      'patientName': userData?['fullName'] ?? 'Unknown',
-      'patientEmail': userData?['email'] ?? '',
-      'doctorId': data['doctorId'],
-      'doctorName': data['doctorName'],
-      'categoryName': data['categoryName'],
-      'amountPaid': data['amount'],
-      'currency': data['currency'],
-      'date': data['date'],
-      'time': time,
-      'dateTime': Timestamp.fromDate(appointmentDateTime),
-      'status': 'pending',
-      'paymentStatus': paymentMethod == 'gcash'
-          ? 'for_verification'
-          : 'cash_pending',
-      'paymentMethod': paymentMethod,
-      'paymentId': widget.paymentId,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      await FirebaseFirestore.instance.collection('appointments').add({
+        'userId': data['userId'],
+        'patientName': userData?['fullName'] ?? 'Unknown',
+        'patientEmail': userData?['email'] ?? '',
+        'doctorId': data['doctorId'],
+        'doctorName': data['doctorName'],
+        'categoryName': data['categoryName'],
+        'amountPaid': pricePerSlot,
+        'currency': data['currency'],
+        'date': data['date'],
+        'time': time,
+        'dateTime': Timestamp.fromDate(appointmentDateTime),
+        'status': 'pending',
+        'paymentStatus': paymentMethod == 'gcash'
+            ? 'for_verification'
+            : 'cash_pending',
+        'paymentMethod': paymentMethod,
+        'paymentId': widget.paymentId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-  }
-
-  }
+    }
 
     setState(() => loading = false);
 
@@ -391,6 +392,62 @@ for (final time in times) {
                 ),
               ),
 
+              if (paymentMethod == 'cash') ...[
+                const SizedBox(height: 20),
+
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      const Text(
+                        'Cash Type',
+                        style: TextStyle(color: Colors.white),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  cashType = 'walk_in';
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: cashType == 'walk_in'
+                                      ? const Color(0xFF3B82F6)
+                                      : Colors.white12,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'Walk-in',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               /// SHOW ONLY FOR GCASH
               if (paymentMethod == 'gcash') ...[
 
@@ -478,13 +535,50 @@ for (final time in times) {
 
               const SizedBox(height: 30),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: loading ? null : confirmPayment,
-                  child: loading
-                      ? const CircularProgressIndicator()
-                      : const Text("Submit Payment"),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GestureDetector(
+                  onTap: loading ? null : confirmPayment,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 56,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF3B82F6),
+                          Color(0xFF2563EB),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: loading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "Submit Payment",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
               ),
 

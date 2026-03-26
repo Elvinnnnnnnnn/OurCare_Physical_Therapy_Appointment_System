@@ -77,8 +77,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         .get();
 
     bookedTimes = snapshot.docs
-        .map((doc) => doc['time'] as String)
-        .toList();
+    .expand((doc) => List<String>.from(doc['times'] ?? []))
+    .toList();
 
     setState(() {});
   }
