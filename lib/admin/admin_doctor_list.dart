@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_edit_doctor.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class AdminDoctorList extends StatelessWidget {
   const AdminDoctorList({super.key});
@@ -213,28 +214,6 @@ class _DoctorTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              const Icon(Icons.star, color: Colors.orange, size: 18),
-              const SizedBox(width: 4),
-              Text(
-                ((doctorData['averageRating'] ?? 0).toDouble())
-                    .toStringAsFixed(1),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '(${doctorData['totalRatings'] ?? 0})',
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -337,12 +316,25 @@ class _DoctorTile extends StatelessWidget {
             ),
             child: const Text('Delete'),
             onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('doctors')
-                  .doc(doctorId)
-                  .delete();
+              try {
 
-              Navigator.pop(context);
+                final callable = FirebaseFunctions.instanceFor(
+                  region: 'us-central1',
+                ).httpsCallable('adminDeleteDoctor');
+
+                await callable.call({
+                  'uid': doctorId,
+                });
+
+                Navigator.pop(context);
+
+              } catch (e) {
+                print(e);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Delete failed')),
+                );
+              }
             },
           ),
         ],

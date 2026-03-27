@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,29 +20,83 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> login() async {
     setState(() {
-      loading = true;
       error = '';
+    });
+
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    /// CHECK EMPTY
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        error = 'Email and password are required';
+      });
+      return;
+    }
+
+    setState(() {
+      loading = true;
     });
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: email,
+        password: password,
       );
-    } catch (e) {
-      error = e.toString();
+
+      final user = FirebaseAuth.instance.currentUser!;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final phoneVerified = doc['phoneVerified'] ?? false;
+
+      if (!phoneVerified) {
+        await FirebaseAuth.instance.signOut();
+        setState(() {
+          error = 'Verify your phone first';
+        });
+        return;
+      }
+
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        error = 'User not found';
+      } else if (e.code == 'wrong-password') {
+        error = 'Incorrect password';
+      } else if (e.code == 'invalid-email') {
+        error = 'Invalid email';
+      } else {
+        error = 'Login failed';
+      }
     }
 
-    setState(() {
-      loading = false;
-    });
-  }
+      setState(() {
+        loading = false;
+      });
+    }
 
   @override
 Widget build(BuildContext context) {
   return Scaffold(
     backgroundColor: const Color(0xFFF5F7FB),
-    body: Center(
+    body: Stack(
+  children: [
+
+    /// BACKGROUND
+    SizedBox.expand(
+      child: Image.asset(
+        'assets/background.png',
+        fit: BoxFit.cover,
+      ),
+    ),
+
+    Container(
+        color: Colors.white.withOpacity(0.30),
+      ),
+     Center(
       child: Container(
         width: 400,
         padding: const EdgeInsets.all(24),
@@ -82,6 +137,10 @@ Widget build(BuildContext context) {
             /// EMAIL
             TextField(
               controller: emailController,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) {
+                FocusScope.of(context).nextFocus();
+              },
               decoration: InputDecoration(
                 hintText: 'Email',
                 contentPadding: const EdgeInsets.symmetric(
@@ -100,6 +159,8 @@ Widget build(BuildContext context) {
             TextField(
               controller: passwordController,
               obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => login(),
               decoration: InputDecoration(
                 hintText: 'Password',
                 contentPadding: const EdgeInsets.symmetric(
@@ -154,6 +215,9 @@ Widget build(BuildContext context) {
         ),
       ),
     ),
+  ]
+    )
+    
   );
 }
 }

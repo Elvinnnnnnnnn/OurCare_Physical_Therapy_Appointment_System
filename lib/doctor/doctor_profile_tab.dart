@@ -247,6 +247,7 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
 
         final doc = snapshot.data!.docs.first;
         final doctor = doc.data() as Map<String, dynamic>;
+        final phone = doctor['phone'] ?? '';
 
         return Scaffold(
           backgroundColor: kWhite,
@@ -340,6 +341,12 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
                   icon: Icons.email,
                   title: 'Email Address',
                   value: doctor['email'],
+                ),
+
+                _profileItem(
+                  icon: Icons.phone,
+                  title: 'Phone Number',
+                  value: phone,
                 ),
 
                 _sectionTitle('Security'),

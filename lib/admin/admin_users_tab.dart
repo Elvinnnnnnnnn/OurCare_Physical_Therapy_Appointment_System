@@ -77,7 +77,7 @@ class _AdminUsersTabState extends State<AdminUsersTab>
               labelColor: kPrimaryBlue,
               unselectedLabelColor: Colors.black54,
               tabs: [
-                _tabItem('Customers'),
+                _tabItem('Patient'),
                 _tabItem('Doctors'),
                 _tabItem('Admins'),
               ],

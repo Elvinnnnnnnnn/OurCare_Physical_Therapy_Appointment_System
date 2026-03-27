@@ -12,6 +12,7 @@ class AuthService {
     required String fullName,
     required String email,
     required String password,
+    required String phoneNumber,
   }) async {
     try {
       final normalizedEmail = email.trim().toLowerCase();
@@ -24,7 +25,6 @@ class AuthService {
 
       // ✅ SEND VERIFICATION EMAIL HERE
       final user = cred.user;
-      await user?.sendEmailVerification();
 
       final uid = user!.uid;
       
@@ -54,8 +54,11 @@ class AuthService {
       await _firestore.collection('users').doc(uid).set({
         'fullName': fullName,
         'email': normalizedEmail,
+        'phone': phoneNumber,
         'role': role,
         'doctorId': doctorId,
+        'emailVerified': false,
+        'phoneVerified': false,
         'disabled': false,
         'createdAt': FieldValue.serverTimestamp(),
       });

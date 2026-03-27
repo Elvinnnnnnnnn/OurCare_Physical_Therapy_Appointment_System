@@ -30,7 +30,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Map<String, dynamic>? selectedDoctorData;
 
   static const Color kWhite = Color(0xFFFFFFFF);
-  static const Color kDarkBlue = Color(0xFF001C99);
 
   // ✅ OPEN EDIT DOCTOR
   void openEditDoctor(String id, Map<String, dynamic> data) {

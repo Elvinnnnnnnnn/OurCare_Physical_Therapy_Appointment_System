@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_screen.dart';
 import 'email_verification_screen.dart';
+import 'phone_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,22 +42,30 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user == null) throw Exception('Login failed');
 
         // ✅ EMAIL VERIFICATION CHECK
-        if (!user.emailVerified) {
-          await FirebaseAuth.instance.signOut();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
+        final data = doc.data() as Map<String, dynamic>;
+
+        final phoneVerified = doc['phoneVerified'] ?? false;
+
+        if (!phoneVerified) {
           if (!mounted) return;
 
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => EmailVerificationScreen(email: user.email!),
+              builder: (_) => PhoneVerificationScreen(
+                phoneNumber: data['phone'],
+              ),
             ),
           );
 
           setState(() => _isLoading = false);
           return;
         }
-
       // 🔍 CHECK IF THIS USER IS A DOCTOR
       final doctorSnapshot = await FirebaseFirestore.instance
           .collection('doctors')
@@ -87,16 +96,24 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!mounted) return;
+        Navigator.pop(context);
+        } on FirebaseAuthException catch (e) {
+          if (!mounted) return;
 
-      Navigator.pop(context);
-      // ✅ AuthGate will handle routing
-    } catch (e) {
-      if (!mounted) return;
+          String message = 'Invalid email or password';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
+          if (e.code == 'user-disabled') {
+            message = 'This account has been disabled';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
 
     if (mounted) {
       setState(() => _isLoading = false);

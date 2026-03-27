@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:project/services/notification_service.dart';
 
 enum ReportRange {
     today,
@@ -750,10 +751,12 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
     if (newStatus == 'approved') {
       final String dateStr =
-        (appointment['date'] ?? '').toString();
+          (appointment['date'] ?? '').toString();
       final String rawTime =
-        (appointment['time'] ?? '').toString();
-      final String startTime = rawTime.split(' - ').first.trim();
+          (appointment['time'] ?? '').toString();
+      final String startTime =
+          rawTime.split(' - ').first.trim();
+
       final parts = dateStr.split('-');
       final int year = int.parse(parts[0]);
       final int month = int.parse(parts[1]);
@@ -784,17 +787,6 @@ class _DoctorAppointmentCard extends StatelessWidget {
         'paymentStatus': 'approved',
       });
 
-      // 🔥 ALSO UPDATE PAYMENT DOCUMENT
-      if (appointment['paymentId'] != null) {
-        await FirebaseFirestore.instance
-            .collection('payments')
-            .doc(appointment['paymentId'])
-            .update({
-          'status': 'approved',
-          'approvedAt': FieldValue.serverTimestamp(),
-        });
-      }
-
       final paymentId = appointment['paymentId'];
 
       if (paymentId != null) {
@@ -805,9 +797,10 @@ class _DoctorAppointmentCard extends StatelessWidget {
 
         final paymentData = paymentSnap.data();
 
-        if (paymentData != null && paymentData['isReschedule'] == true) {
-
-          final originalId = paymentData['originalAppointmentId'];
+        if (paymentData != null &&
+            paymentData['isReschedule'] == true) {
+          final originalId =
+              paymentData['originalAppointmentId'];
 
           if (originalId != null) {
             await FirebaseFirestore.instance
@@ -817,11 +810,16 @@ class _DoctorAppointmentCard extends StatelessWidget {
               'date': paymentData['date'],
               'time': paymentData['time'],
               'dateTime': paymentData['dateTime'],
-              'status': 'pending', // 👈 important
+              'status': 'pending',
             });
           }
         }
       }
+
+      // ✅ CORRECT POSITION
+      await NotificationService.scheduleAllReminders(
+        appointmentDateTime: appointmentDateTime,
+      );
     }
 
     if (newStatus == 'completed') {

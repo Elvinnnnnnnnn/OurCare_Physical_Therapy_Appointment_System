@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'dart:io'; 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,15 +19,20 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _aboutController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   List<String> _selectedCategoryIds = [];
 
   bool _isLoading = false;
 
-  File? _qrFile;
+  Uint8List? _imageBytes;
+  Uint8List? _qrBytes;
+
   File? _imageFile;
+  File? _qrFile;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -36,39 +43,61 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
+
     if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() => _imageBytes = bytes);
+      } else {
+        setState(() => _imageFile = File(picked.path));
+      }
     }
   }
 
   Future<void> _pickQrImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
+
     if (picked != null) {
-      setState(() => _qrFile = File(picked.path));
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() => _qrBytes = bytes);
+      } else {
+        setState(() => _qrFile = File(picked.path));
+      }
     }
   }
 
-  Future<String?> _uploadImage(String email) async {
-    if (_imageFile == null) return null;
+ Future<String?> _uploadImage(String email) async {
+  if (_imageFile == null && _imageBytes == null) return null;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('doctors/${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('doctors/${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
 
+  if (kIsWeb) {
+    await ref.putData(_imageBytes!);
+  } else {
     await ref.putFile(_imageFile!);
-    return await ref.getDownloadURL();
   }
+
+  return await ref.getDownloadURL();
+}
 
   Future<String?> _uploadQrImage(String email) async {
-    if (_qrFile == null) return null;
+  if (_qrFile == null && _qrBytes == null) return null;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('doctor_qr/${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('doctor_qr/${DateTime.now().millisecondsSinceEpoch}_$email.jpg');
 
+  if (kIsWeb) {
+    await ref.putData(_qrBytes!);
+  } else {
     await ref.putFile(_qrFile!);
-    return await ref.getDownloadURL();
   }
+
+  return await ref.getDownloadURL();
+}
 
   Future<void> _saveDoctor() async {
 
@@ -96,9 +125,14 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
       final callable = FirebaseFunctions.instance
           .httpsCallable('adminCreateDoctor');
 
+      final rawPhone = _phoneController.text.trim();
+      final phone = '+63${rawPhone.replaceAll(RegExp(r'^0'), '')}';
+
       await callable.call({
         'fullName': _nameController.text.trim(),
         'email': email,
+        'phone': phone,
+        'password': _passwordController.text.trim(),
         'experience': _experienceController.text.trim(),
         'aboutMe': _aboutController.text.trim(),
         'categoryIds': _selectedCategoryIds,
@@ -111,20 +145,21 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Doctor added')),
-      );
+          const SnackBar(content: Text('Doctor added')),
+        );
 
-      _nameController.clear();
-      _emailController.clear();
-      _experienceController.clear();
-      _aboutController.clear();
-      _priceController.clear();
-      _selectedCategoryIds.clear();
+        _nameController.clear();
+        _emailController.clear();
+        _experienceController.clear();
+        _aboutController.clear();
+        _priceController.clear();
+        _passwordController.clear(); // ✅ HERE
+        _selectedCategoryIds.clear();
 
-      setState(() {
-        _imageFile = null;
-        _qrFile = null;
-      });
+        setState(() {
+          _imageFile = null;
+          _qrFile = null;
+        });
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,10 +227,10 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                                       CircleAvatar(
                                         radius: 50,
                                         backgroundColor: kSoftBlue,
-                                        backgroundImage: _imageFile != null
-                                            ? FileImage(_imageFile!)
-                                            : null,
-                                        child: _imageFile == null
+                                        backgroundImage: kIsWeb
+                                            ? (_imageBytes != null ? MemoryImage(_imageBytes!) : null)
+                                            : (_imageFile != null ? FileImage(_imageFile!) : null),
+                                        child: (_imageFile == null && _imageBytes == null)
                                             ? const Icon(Icons.camera_alt, size: 28)
                                             : null,
                                       ),
@@ -216,19 +251,23 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                                     decoration: BoxDecoration(
                                       color: kSoftBlue,
                                       borderRadius: BorderRadius.circular(12),
-                                      image: _qrFile != null
-                                          ? DecorationImage(
-                                              image: FileImage(_qrFile!),
-                                              fit: BoxFit.cover,
-                                            )
-                                          : null,
+                                      image: kIsWeb
+                                          ? (_qrBytes != null
+                                              ? DecorationImage(
+                                                  image: MemoryImage(_qrBytes!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null)
+                                          : (_qrFile != null
+                                              ? DecorationImage(
+                                                  image: FileImage(_qrFile!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null),
                                     ),
-                                    child: _qrFile == null
+                                    child: (_qrFile == null && _qrBytes == null)
                                         ? const Center(
-                                            child: Text(
-                                              'Upload QR Code',
-                                              style: TextStyle(fontWeight: FontWeight.w500),
-                                            ),
+                                            child: Text('Upload QR Code'),
                                           )
                                         : null,
                                   ),
@@ -260,6 +299,26 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                                       child: TextField(
                                         controller: _emailController,
                                         decoration: _input('Email'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _phoneController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: _input('Phone').copyWith(
+                                          prefixText: '+63 ',
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+
+                                    /// ✅ ADD THIS
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _passwordController,
+                                        obscureText: true,
+                                        decoration: _input('Password'),
                                       ),
                                     ),
                                   ],

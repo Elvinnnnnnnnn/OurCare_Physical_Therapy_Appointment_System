@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class AdminDoctorList extends StatelessWidget {
   final Function(String, Map<String, dynamic>) onEdit;
@@ -200,12 +201,25 @@ class AdminDoctorList extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('doctors')
-                  .doc(doctorId)
-                  .delete();
+              try {
 
-              Navigator.pop(context);
+                final callable = FirebaseFunctions.instanceFor(
+                  region: 'us-central1',
+                ).httpsCallable('adminDeleteDoctor');
+
+                await callable.call({
+                  'uid': doctorId,
+                });
+
+                Navigator.pop(context);
+
+              } catch (e) {
+                print(e);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Delete failed')),
+                );
+              }
             },
             child: const Text('Delete'),
           ),

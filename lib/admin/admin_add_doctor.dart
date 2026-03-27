@@ -16,6 +16,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _aboutController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
 
@@ -26,6 +27,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
   File? _qrFile;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+  final TextEditingController _passwordController = TextEditingController();
 
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
@@ -112,6 +114,8 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
 
     try {
       final email = _emailController.text.trim().toLowerCase();
+      final rawPhone = _phoneController.text.trim();
+      final phone = '+63${rawPhone.replaceAll(RegExp(r'^0'), '')}';
       final photoUrl = await _uploadImage(email);
       final qrUrl = await _uploadQrImage(email);
 
@@ -124,6 +128,8 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
       await callable.call({
         'fullName': _nameController.text.trim(),
         'email': email,
+        'phone': phone,
+        'password': _passwordController.text.trim(),
         'experience': _experienceController.text.trim(),
         'aboutMe': _aboutController.text.trim(),
         'categoryIds': _selectedCategoryIds,
@@ -147,11 +153,11 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
       _imageFile = null;
       _qrFile = null;
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
+        print(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -285,6 +291,20 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                 TextField(
                   controller: _emailController,
                   decoration: _input('Email Address'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: _input('Password'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.number,
+                  decoration: _input('Phone Number').copyWith(
+                    prefixText: '+63 ',
+                  ),
                 ),
                 const SizedBox(height: 14),
                 TextField(

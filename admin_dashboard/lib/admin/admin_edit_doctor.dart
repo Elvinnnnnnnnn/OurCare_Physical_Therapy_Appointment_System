@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,6 +35,9 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
   File? _imageFile;
   File? _qrImageFile;
 
+  Uint8List? _imageBytes;
+  Uint8List? _qrImageBytes;
+
   final ImagePicker _picker = ImagePicker();
   List<String> selectedCategoryIds = [];
 
@@ -61,36 +65,53 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
   Future<void> _pickPhoto() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
+
     if (picked != null) {
-      setState(() {
+      if (kIsWeb) {
+        _imageBytes = await picked.readAsBytes();
+      } else {
         _imageFile = File(picked.path);
-      });
+      }
+
+      setState(() {});
     }
   }
 
   Future<void> _pickQrImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
+
     if (picked != null) {
-      setState(() {
+      if (kIsWeb) {
+        _qrImageBytes = await picked.readAsBytes();
+      } else {
         _qrImageFile = File(picked.path);
-      });
+      }
+
+      setState(() {});
     }
   }
 
   Future<String?> _uploadPhoto() async {
-    if (_imageFile == null) return widget.doctorData['photoUrl'];
+    if (_imageFile == null && _imageBytes == null) {
+      return widget.doctorData['photoUrl'];
+    }
 
     final ref = FirebaseStorage.instance
         .ref()
         .child('doctors')
         .child('${widget.doctorId}.jpg');
 
-    await ref.putFile(_imageFile!);
+    if (kIsWeb) {
+      await ref.putData(_imageBytes!);
+    } else {
+      await ref.putFile(_imageFile!);
+    }
+
     return await ref.getDownloadURL();
   }
 
   Future<String?> _uploadQrImage() async {
-    if (_qrImageFile == null) {
+    if (_qrImageFile == null && _qrImageBytes == null) {
       return widget.doctorData['qrImageUrl'];
     }
 
@@ -99,7 +120,12 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
         .child('doctor_qr')
         .child('${widget.doctorId}_qr.jpg');
 
-    await ref.putFile(_qrImageFile!);
+    if (kIsWeb) {
+      await ref.putData(_qrImageBytes!);
+    } else {
+      await ref.putFile(_qrImageFile!);
+    }
+
     return await ref.getDownloadURL();
   }
 
@@ -123,6 +149,13 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
         'consultationPrice': int.tryParse(priceCtrl.text.trim()) ?? 0,
         'currency': 'PHP',
         'qrImageUrl': qrUrl,
+      });
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.doctorData['userId'])
+          .update({
+        'photoUrl': photoUrl,
       });
 
       await FirebaseFirestore.instance
@@ -202,10 +235,10 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                       radius: 50,
                       backgroundColor: kSoftBlue,
                       backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : photoUrl != null
-                              ? NetworkImage(photoUrl)
-                              : null,
+                        ? FileImage(_imageFile!)
+                        : (photoUrl != null && photoUrl.isNotEmpty)
+                            ? NetworkImage(photoUrl)
+                            : null,
                       child: _imageFile == null && photoUrl == null
                           ? const Icon(Icons.camera_alt)
                           : null,
@@ -306,7 +339,8 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                                     image: FileImage(_qrImageFile!),
                                     fit: BoxFit.cover,
                                   )
-                                : widget.doctorData['qrImageUrl'] != null
+                                : (widget.doctorData['qrImageUrl'] != null &&
+                                    widget.doctorData['qrImageUrl'].toString().isNotEmpty)
                                     ? DecorationImage(
                                         image: NetworkImage(
                                             widget.doctorData['qrImageUrl']),

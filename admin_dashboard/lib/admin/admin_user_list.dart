@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 const Color kWhite = Color(0xFFFFFFFF);
 const Color kPrimaryBlue = Color(0xFF1562E2);
@@ -181,11 +182,22 @@ class _UserCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(userId)
-                        .delete();
-                  },
+                    try {
+                      await FirebaseFunctions.instanceFor(
+                        region: 'us-central1',
+                      )
+                          .httpsCallable('adminDeleteUser')
+                          .call({'uid': userId});
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('User deleted')),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Delete failed: $e')),
+                      );
+                    }
+                  }
                 ),
             ],
           ),

@@ -558,7 +558,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                       ),
                     ),
                     selected: _selectedTimes.contains(time),
-                    selectedColor: kPrimaryBlue,
+                    selectedColor: kSoftBlue,
                     onSelected: (selected) {
 
                       setState(() {

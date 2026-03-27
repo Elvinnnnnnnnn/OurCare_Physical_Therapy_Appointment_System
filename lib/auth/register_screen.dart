@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/auth_service.dart';
 import 'login_screen.dart';
+import 'phone_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -28,7 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   /// 🔗 LINK DOCTOR RECORD (IMPORTANT)
-  Future<void> _linkDoctorAccount(String email) async {
+  Future<void> _linkDoctorAccount(String email, String phoneNumber) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     final doctorQuery = await FirebaseFirestore.instance
@@ -44,6 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // link doctor → user
     await doctorDoc.reference.update({
       'userId': uid,
+      'phone': phoneNumber,
     });
 
     // update user role
@@ -70,10 +73,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authService = AuthService();
 
+    final phone = '+63${_phoneController.text.trim()}';
+
     final error = await authService.registerUser(
       fullName: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
+      phoneNumber: phone,
     );
 
     if (!mounted) return;
@@ -84,11 +90,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } else {
       // 🔗 LINK DOCTOR IF EXISTS
-      await _linkDoctorAccount(_emailController.text.trim());
+      await _linkDoctorAccount(
+        _emailController.text.trim(),
+        phone,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created successfully. Please login.'),
+          content: Text('Enter the OTP sent to your phone'),
         ),
       );
 
@@ -97,10 +106,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _passwordController.clear();
       _confirmPasswordController.clear();
 
+      if (!mounted) return;
       await FirebaseAuth.instance.signOut();
 
-      if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PhoneVerificationScreen(
+            phoneNumber: phone,
+          ),
+        ),
+      );
+
+      _phoneController.clear();
     }
 
     setState(() => _isLoading = false);
@@ -167,6 +185,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: _inputStyle('Email'),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Enter email' : null,
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 10,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixText: '+63 ',
+                    filled: true,
+                    fillColor: kSoftBlue.withOpacity(0.35),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter phone number';
+                    if (v.length != 10) return 'Enter 10 digits';
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 16),

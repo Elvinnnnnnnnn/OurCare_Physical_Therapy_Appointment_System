@@ -14,12 +14,14 @@ class Sidebar extends StatelessWidget {
   static const Color activeColor = Color(0xFF1562E2);
   static const Color textColor = Color(0xFF2D3748);
   static const Color inactiveColor = Color(0xFF718096);
+  static const Color kDarkBlue = Color(0xFF001C99);
+  static const Color kSoftBlue = Color(0xFFB3EBF2);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 260,
-      color: bgColor,
+      color: kSoftBlue,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,7 +34,7 @@ class Sidebar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
-                color: textColor,
+                color: kDarkBlue,
               ),
             ),
           ),
@@ -68,7 +70,7 @@ class Sidebar extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isActive ? activeColor : inactiveColor,
+              color: isActive ? activeColor : kDarkBlue,
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -77,7 +79,7 @@ class Sidebar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? activeColor : textColor,
+                color: isActive ? activeColor : kDarkBlue,
               ),
             ),
           ],

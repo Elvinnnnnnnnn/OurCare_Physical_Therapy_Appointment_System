@@ -147,6 +147,7 @@ exports.adminToggleUserDisabled = onCall(async (request) => {
 exports.adminCreateDoctor = onCall(
   { region: "us-central1" },
   async (request) => {
+
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Login required");
     }
@@ -165,6 +166,8 @@ exports.adminCreateDoctor = onCall(
     const {
       fullName,
       email,
+      phone,
+      password,
       experience,
       aboutMe,
       categoryIds,
@@ -174,35 +177,108 @@ exports.adminCreateDoctor = onCall(
       currency,
     } = request.data;
 
-    await getFirestore().collection("doctors").add({
-      userId: null,
-      name: fullName,
+    // ✅ STEP 1: Create Auth user
+    const userRecord = await getAuth().createUser({
       email,
-      experience,
-      aboutMe,
-      categoryIds: categoryIds || [],
-      photoUrl,
-      qrImageUrl,
-
-      consultationPrice: consultationPrice,
-      currency: currency ?? "PHP",
-
-      availability: {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: [],
-      },
-
-      available: false,     // ✅ ADD THIS
-      activated: false,    // ❗ stays false until admin approves
-      createdAt: new Date(),
+      password: password,
+      displayName: fullName,
     });
 
+    const uid = userRecord.uid;
+
+    // ✅ STEP 2: Create USERS document
+    await getFirestore()
+      .collection("users")
+      .doc(uid)
+      .set({
+        fullName,
+        email,
+        phone: phone || "",
+        phoneVerified: false,
+        role: "doctor",
+        photoUrl: photoUrl,
+        disabled: false,
+        createdAt: new Date(),
+      });
+
+    // ✅ STEP 3: Create DOCTOR document
+    await getFirestore()
+      .collection("doctors")
+      .doc(uid)
+      .set({
+        userId: uid,
+        name: fullName,
+        email,
+        phone: phone || "",
+        experience,
+        aboutMe,
+        categoryIds: categoryIds || [],
+        photoUrl,
+        qrImageUrl,
+        consultationPrice,
+        currency: currency ?? "PHP",
+
+        availability: {
+          monday: [],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+        },
+
+        available: false,
+        activated: false,
+        createdAt: new Date(),
+      });
+
     return { success: true };
+  }
+);
+
+exports.adminDeleteDoctor = onCall(
+  { region: "us-central1" },
+  async (request) => {
+
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const callerUid = request.auth.uid;
+
+    const callerDoc = await getFirestore()
+      .collection("users")
+      .doc(callerUid)
+      .get();
+
+    if (!callerDoc.exists || callerDoc.data().role !== "admin") {
+      throw new HttpsError("permission-denied", "Admin only");
+    }
+
+    const { uid } = request.data;
+
+    if (!uid) {
+      throw new HttpsError("invalid-argument", "Missing uid");
+    }
+
+    try {
+
+      // 1. DELETE AUTH
+      await getAuth().deleteUser(uid);
+
+      // 2. DELETE FIRESTORE USER
+      await getFirestore().collection("users").doc(uid).delete();
+
+      // 3. DELETE DOCTOR
+      await getFirestore().collection("doctors").doc(uid).delete();
+
+      return { success: true };
+
+    } catch (e) {
+      console.error(e);
+      throw new HttpsError("internal", e.message);
+    }
   }
 );
 

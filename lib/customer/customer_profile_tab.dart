@@ -221,6 +221,7 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
         final fullName = data['fullName'] ?? '';
         final email = data['email'] ?? user.email ?? '';
         final photoUrl = data['photoUrl'];
+        final phone = data['phone'] ?? '';
 
         return Scaffold(
           backgroundColor: kWhite,
@@ -318,6 +319,12 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
                   icon: Icons.email,
                   title: 'Email Address',
                   value: email,
+                ),
+
+                _profileItem(
+                  icon: Icons.phone,
+                  title: 'Phone Number',
+                  value: phone,
                 ),
 
                 _sectionTitle('Security'),

@@ -148,7 +148,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.7,
       child: Container(
-        color: kWhite,
+        color: kSoftBlue,
         child: SafeArea(
           child: ListView(
             children: [

@@ -651,10 +651,54 @@ class _AdminAppointmentCard extends StatelessWidget {
     );
   }
 
-  Future<void> _updateStatus(String status) async {
+  Future<void> _updateStatus(String newStatus) async {
+    final Map<String, dynamic> updateData = {
+      'status': newStatus,
+    };
+
+    if (newStatus == 'approved') {
+      updateData['approvedBy'] = 'admin';
+
+      final String dateStr =
+          (appointment['date'] ?? '').toString();
+      final String rawTime =
+          (appointment['time'] ?? '').toString();
+
+      final String startTime =
+          rawTime.split(' - ').first.trim();
+
+      final parts = dateStr.split('-');
+      final int year = int.parse(parts[0]);
+      final int month = int.parse(parts[1]);
+      final int day = int.parse(parts[2]);
+
+      final timeParts = startTime.split(' ');
+      final clock = timeParts[0];
+      final meridiem = timeParts[1];
+
+      final hm = clock.split(':');
+      int hour = int.parse(hm[0]);
+      final int minute = int.parse(hm[1]);
+
+      if (meridiem == 'PM' && hour != 12) hour += 12;
+      if (meridiem == 'AM' && hour == 12) hour = 0;
+
+      final DateTime appointmentDateTime = DateTime(
+        year,
+        month,
+        day,
+        hour,
+        minute,
+      );
+
+      updateData['appointmentAt'] =
+          Timestamp.fromDate(appointmentDateTime);
+      updateData['reminderScheduled'] = false;
+    }
+
     await FirebaseFirestore.instance
         .collection('appointments')
         .doc(appointmentId)
-        .update({'status': status});
+        .update(updateData);
   }
 }
