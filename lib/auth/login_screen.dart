@@ -43,9 +43,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // ✅ EMAIL VERIFICATION CHECK
         final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server));
 
         final data = doc.data() as Map<String, dynamic>;
 

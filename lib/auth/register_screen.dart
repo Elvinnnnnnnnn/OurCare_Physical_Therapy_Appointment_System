@@ -107,7 +107,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _confirmPasswordController.clear();
 
       if (!mounted) return;
-      await FirebaseAuth.instance.signOut();
 
       Navigator.push(
         context,

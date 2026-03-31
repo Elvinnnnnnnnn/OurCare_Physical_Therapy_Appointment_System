@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'dart:async';
 
 class PhoneVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -19,10 +20,16 @@ class PhoneVerificationScreen extends StatefulWidget {
 class _PhoneVerificationScreenState
     extends State<PhoneVerificationScreen> {
 
-        static const Color kWhite = Color(0xFFFFFFFF);
+  static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+
+  int? _resendToken;
+  int _secondsRemaining = 60;
+  bool _canResend = false;
+  Timer? _timer;
+
 
   final otpController = TextEditingController();
 
@@ -36,73 +43,152 @@ class _PhoneVerificationScreenState
   }
 
   Future<void> sendOtp() async {
+    if (!_canResend && verificationId.isNotEmpty) return;
+
     await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: widget.phoneNumber,
+    phoneNumber: widget.phoneNumber,
+    forceResendingToken: _resendToken,
 
-      verificationCompleted: (credential) async {
-        await FirebaseAuth.instance.currentUser!
-            .linkWithCredential(credential);
-      },
 
-      verificationFailed: (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Error')),
-        );
-      },
+    verificationCompleted: (credential) async {
+final user = FirebaseAuth.instance.currentUser;
 
-      codeSent: (verId, resendToken) {
-        setState(() {
-          verificationId = verId;
-        });
-      },
+if (user != null) {
+await user.linkWithCredential(credential);
+}
+},
 
-      codeAutoRetrievalTimeout: (verId) {},
+
+    verificationFailed: (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Error')),
+      );
+    },
+
+    codeSent: (verId, resendToken) {
+    setState(() {
+    verificationId = verId;
+    _resendToken = resendToken;
+    });
+
+    startTimer();
+    },
+
+
+    codeAutoRetrievalTimeout: (verId) {
+      setState(() {
+        verificationId = verId;
+      });
+    },
+
+
     );
   }
 
-  Future<void> verifyOtp() async {
-    if (otpController.text.isEmpty) return;
+  void startTimer() {
+  _timer?.cancel();
 
-    setState(() => isLoading = true);
+  setState(() {
+  _secondsRemaining = 60;
+  _canResend = false;
+  });
 
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: otpController.text.trim(),
-      );
-
-      await FirebaseAuth.instance.currentUser!
-          .linkWithCredential(credential);
-
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({
-        'phoneVerified': true,
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone verified')),
-      );
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid OTP')),
-      );
-    }
-
-    setState(() => isLoading = false);
+  _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+  if (_secondsRemaining == 0) {
+  timer.cancel();
+  setState(() {
+  _canResend = true;
+  });
+  } else {
+  setState(() {
+  _secondsRemaining--;
+  });
   }
+  });
+  }
+
+  Future verifyOtp() async {
+
+    if (verificationId.isEmpty) {
+ScaffoldMessenger.of(context).showSnackBar(
+const SnackBar(content: Text('Session expired. Resend code')),
+);
+return;
+}
+
+if (otpController.text.isEmpty) return;
+
+setState(() => isLoading = true);
+
+try {
+final credential = PhoneAuthProvider.credential(
+verificationId: verificationId,
+smsCode: otpController.text.trim(),
+);
+
+final user = FirebaseAuth.instance.currentUser;
+
+if (user == null) {
+throw Exception('User not logged in');
+}
+
+await user.linkWithCredential(credential);
+
+final uid = user.uid;
+
+await FirebaseFirestore.instance
+.collection('users')
+.doc(uid)
+.set({
+'phoneVerified': true,
+}, SetOptions(merge: true));
+
+await Future.delayed(const Duration(milliseconds: 500));
+
+if (!mounted) return;
+
+ScaffoldMessenger.of(context).showSnackBar(
+const SnackBar(content: Text('Phone verified')),
+);
+
+Navigator.pushAndRemoveUntil(
+context,
+MaterialPageRoute(builder: (_) => const LoginScreen()),
+(route) => false,
+);
+
+
+} on FirebaseAuthException catch (e) {
+print('ERROR CODE: ${e.code}');
+print('ERROR MESSAGE: ${e.message}');
+
+String message = 'Invalid OTP';
+
+if (e.code == 'invalid-verification-code') {
+  message = 'Wrong code';
+} else if (e.code == 'session-expired') {
+  message = 'Code expired. Request new one';
+} else if (e.code == 'credential-already-in-use') {
+  message = 'Phone already linked to another account';
+} else if (e.code == 'provider-already-linked') {
+  message = 'Phone already verified';
+}
+
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(content: Text(message)),
+);
+
+} catch (e) {
+print('UNKNOWN ERROR: $e');
+
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(content: Text('Something went wrong')),
+);
+
+}
+
+setState(() => isLoading = false);
+}
 
 @override
 Widget build(BuildContext context) {
@@ -209,10 +295,12 @@ Widget build(BuildContext context) {
 
                 /// RESEND
                 TextButton(
-                  onPressed: sendOtp,
-                  child: const Text(
-                    'Resend Code',
-                    style: TextStyle(color: kPrimaryBlue),
+                  onPressed: _canResend ? sendOtp : null,
+                  child: Text(
+                  _canResend
+                  ? 'Resend Code'
+                  : 'Resend in $_secondsRemaining s',
+                  style: const TextStyle(color: kPrimaryBlue),
                   ),
                 ),
               ],
@@ -223,4 +311,11 @@ Widget build(BuildContext context) {
     ),
   );
 }
+@override
+void dispose() {
+_timer?.cancel();
+otpController.dispose();
+super.dispose();
+}
+
 }
