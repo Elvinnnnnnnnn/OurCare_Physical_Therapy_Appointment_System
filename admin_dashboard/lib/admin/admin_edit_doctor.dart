@@ -218,7 +218,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Edit Doctor',
+                  'Edit Therapist',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -364,7 +364,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                             activated = value;
                           });
                         },
-                        title: const Text('Activate Doctor'),
+                        title: const Text('Activate Therapist'),
                       ),
                     ],
                   ),

@@ -63,7 +63,7 @@ class _AdminUsersTabState extends State<AdminUsersTab>
               unselectedLabelColor: Colors.black54,
               tabs: [
                 _tabItem('Patient'),
-                _tabItem('Doctors'),
+                _tabItem('Therapist'),
                 _tabItem('Admins'),
               ],
             ),

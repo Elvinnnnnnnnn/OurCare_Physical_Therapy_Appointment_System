@@ -41,9 +41,9 @@ class Sidebar extends StatelessWidget {
 
           const SizedBox(height: 30),
 
-          _item(Icons.medical_services, 'Doctors', 0),
+          _item(Icons.medical_services, 'Therapist', 0),
           _item(Icons.calendar_month, 'Appointments', 1),
-          _item(Icons.person_add, 'Add Doctor', 2),
+          _item(Icons.person_add, 'Add Therapist', 2),
           _item(Icons.category, 'Categories', 3),
           _item(Icons.calendar_today, 'Calendar', 4),
           _item(Icons.people, 'Users', 5),

@@ -75,7 +75,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       case 7:
         if (selectedDoctorData == null) {
-          return const Center(child: Text('No doctor selected'));
+          return const Center(child: Text('No therapist selected'));
         }
         return AdminEditDoctorScreen(
           doctorId: selectedDoctorId!,
@@ -85,7 +85,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       case 8:
         if (selectedDoctorData == null) {
-          return const Center(child: Text('No doctor selected'));
+          return const Center(child: Text('No therapist selected'));
         }
         return AdminEditDoctorAvailability(
           doctorId: selectedDoctorId!,
@@ -103,11 +103,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String getTitle() {
     switch (selectedIndex) {
       case 0:
-        return 'Doctors';
+        return 'Therapist';
       case 1:
         return 'Appointments';
       case 2:
-        return 'Add Doctor';
+        return 'Add Therapist';
       case 3:
         return 'Categories';
       case 4:
@@ -117,7 +117,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 6:
         return 'Profile';
       case 7:
-        return 'Edit Doctor';
+        return 'Edit Therapist';
       case 8:
         return 'Edit Availability';
       case 9:

@@ -26,17 +26,6 @@ class AdminUserList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            Text(
-              '${role[0].toUpperCase()}${role.substring(1)} Accounts',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: kDarkBlue,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance

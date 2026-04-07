@@ -350,7 +350,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                                 TextField(
                                   controller: _aboutController,
                                   maxLines: 4,
-                                  decoration: _input('About Doctor'),
+                                  decoration: _input('About Therapist'),
                                 ),
 
                                 const SizedBox(height: 14),
@@ -439,7 +439,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                                               ),
                                             )
                                           : const Text(
-                                        'Save Doctor',
+                                        'Save Therapist',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white,

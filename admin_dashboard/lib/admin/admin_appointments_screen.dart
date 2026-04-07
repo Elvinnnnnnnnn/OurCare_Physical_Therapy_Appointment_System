@@ -234,7 +234,7 @@ class _AdminAppointmentsScreenState
                 items: [
                   const DropdownMenuItem(
                     value: "All",
-                    child: Text("All Doctors"),
+                    child: Text("All Therapist"),
                   ),
                   ...doctors.map((doctor) {
                     return DropdownMenuItem<String>(
@@ -337,9 +337,14 @@ class _AdminAppointmentsScreenState
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: (() {
-                Query query = FirebaseFirestore.instance
-                    .collection('appointments')
-                    .where('status', isEqualTo: getStatusFilter());
+                Query query = FirebaseFirestore.instance.collection('appointments');
+
+                if (selectedTab == 1) {
+                  // Upcoming tab
+                  query = query.where('status', whereIn: ['approved', 'ongoing']);
+                } else {
+                  query = query.where('status', isEqualTo: getStatusFilter());
+                }
 
                 if (selectedDoctorId != null) {
                   query = query.where('doctorId',
@@ -405,6 +410,7 @@ class _AdminAppointmentCard extends StatelessWidget {
     if (status == 'approved') return Colors.green;
     if (status == 'cancelled') return Colors.red;
     if (status == 'completed') return Colors.blue;
+    if (status == 'ongoing') return Colors.green;
     return Colors.orange;
   }
 
@@ -412,6 +418,7 @@ class _AdminAppointmentCard extends StatelessWidget {
     if (status == 'approved') return 'Approved';
     if (status == 'completed') return 'Completed';
     if (status == 'cancelled') return 'Cancelled';
+    if (status == 'ongoing') return 'Ongoing';
     return 'Pending';
   }
 
@@ -618,13 +625,25 @@ class _AdminAppointmentCard extends StatelessWidget {
 
               /// APPROVED
               if (status == 'approved')
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _updateStatus('completed'),
-                    child: const Text('Finish Session'),
-                  ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _updateStatus('ongoing'),
+                  child: const Text('Start Session'),
                 ),
+              ),
+              if (status == 'ongoing')
+                SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => _updateStatus('completed'),
+                  child: const Text('Finish Session'),
+                ),
+              ),
             ],
           )
         ],
