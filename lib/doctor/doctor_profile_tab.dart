@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:project/auth/login_screen.dart';
 
 class DoctorProfileTab extends StatefulWidget {
   const DoctorProfileTab({super.key});
@@ -24,8 +25,16 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-  }
+  await FirebaseAuth.instance.signOut();
+
+  if (!mounted) return;
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    (route) => false,
+  );
+}
 
   /// ======================
   /// IMAGE PICK & UPLOAD

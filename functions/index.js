@@ -387,7 +387,7 @@ exports.onAppointmentStatusChange = onDocumentUpdated(
       for (const adminDoc of admins.docs) {
         await db.collection("notifications").add({
           userId: adminDoc.id,
-          title: "Doctor Approved Appointment",
+          title: "Therapist Approved Appointment",
           body: `${after.doctorName} approved an appointment`,
           read: false,
           type: "admin",

@@ -142,7 +142,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Doctor added successfully')),
+        const SnackBar(content: Text('Therapist added successfully')),
       );
 
       _nameController.clear();
@@ -285,7 +285,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
               children: [
                 TextField(
                   controller: _nameController,
-                  decoration: _input('Doctor Name'),
+                  decoration: _input('Therapist Name'),
                 ),
                 const SizedBox(height: 14),
                 TextField(
@@ -321,7 +321,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
                 TextField(
                   controller: _aboutController,
                   maxLines: 4,
-                  decoration: _input('About Doctor'),
+                  decoration: _input('About Therapist'),
                 ),
                 const SizedBox(height: 14),
                 StreamBuilder<QuerySnapshot>(
@@ -383,7 +383,7 @@ class _AdminAddDoctorState extends State<AdminAddDoctor> {
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text(
-                      'Save Doctor',
+                      'Save Therapist',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

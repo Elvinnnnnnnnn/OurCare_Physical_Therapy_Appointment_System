@@ -198,7 +198,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     });
                   },
                   decoration: const InputDecoration(
-                    hintText: 'Search doctors or services',
+                    hintText: 'Search therapist or services',
                     prefixIcon: Icon(Icons.search),
                     border: InputBorder.none,
                     contentPadding:

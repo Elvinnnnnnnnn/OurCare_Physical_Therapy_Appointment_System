@@ -42,11 +42,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   String _title() {
     switch (_index) {
       case 0:
-        return 'Doctors';
+        return 'Therapist';
       case 1:
         return 'Appointments';
       case 2:
-        return 'Add Doctor';
+        return 'Add Therapist';
       case 3:
         return 'Categories';
       case 4:
@@ -155,9 +155,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
               const SizedBox(height: 20),
 
-              _drawerItem(Icons.medical_services, 'Doctors', 0),
+              _drawerItem(Icons.medical_services, 'Therapist', 0),
               _drawerItem(Icons.calendar_month, 'Appointments', 1),
-              _drawerItem(Icons.person_add_alt, 'Add Doctor', 2),
+              _drawerItem(Icons.person_add_alt, 'Add Therapist', 2),
               _drawerItem(Icons.category, 'Categories', 3),
               _drawerItem(Icons.calendar_today, 'Calendar', 4),
               _drawerItem(Icons.people, 'Users', 5),

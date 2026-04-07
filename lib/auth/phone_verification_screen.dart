@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:project/customer/customer_home_tab.dart';
 import 'login_screen.dart';
 import 'dart:async';
 
@@ -152,9 +153,9 @@ const SnackBar(content: Text('Phone verified')),
 );
 
 Navigator.pushAndRemoveUntil(
-context,
-MaterialPageRoute(builder: (_) => const LoginScreen()),
-(route) => false,
+  context,
+  MaterialPageRoute(builder: (_) => const CustomerHomeTab()),
+  (route) => false,
 );
 
 

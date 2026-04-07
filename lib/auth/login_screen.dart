@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:project/customer/customer_home_tab.dart';
 import 'register_screen.dart';
 import 'email_verification_screen.dart';
 import 'phone_verification_screen.dart';
+import 'package:project/customer/customer_home.dart';
+import 'package:project/admin/admin_home_screen.dart';
+import 'package:project/doctor/doctor_home.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
-
   // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
@@ -33,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 🔐 FIREBASE LOGIN
+      await FirebaseAuth.instance.signOut();
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -48,13 +52,16 @@ class _LoginScreenState extends State<LoginScreen> {
           .get(const GetOptions(source: Source.server));
 
         final data = doc.data() as Map<String, dynamic>;
+        final role = data['role'] ?? 'patient';
 
-        final phoneVerified = doc['phoneVerified'] ?? false;
+        final phoneVerified = data['phoneVerified'] ?? false;
 
         if (!phoneVerified) {
+          await FirebaseAuth.instance.signOut();
+
           if (!mounted) return;
 
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => PhoneVerificationScreen(
@@ -96,7 +103,26 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!mounted) return;
-        Navigator.pop(context);
+
+        if (role == 'admin') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+            (route) => false,
+          );
+        } else if (role == 'doctor') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const DoctorHome()),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerHome()),
+            (route) => false,
+          );
+        }
         } on FirebaseAuthException catch (e) {
           if (!mounted) return;
 
@@ -288,13 +314,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const RegisterScreen(),
-                                ),
-                              );
-                            },
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                                );
+                              },
                             child: const Text(
                               'Create one',
                               style: TextStyle(

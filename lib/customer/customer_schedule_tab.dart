@@ -93,11 +93,20 @@ class _CustomerScheduleTabState extends State<CustomerScheduleTab> {
           /// APPOINTMENTS
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('appointments')
-                  .where('userId', isEqualTo: user!.uid)
-                  .where('status', isEqualTo: getStatusFilter())
-                  .snapshots(),
+              stream: (() {
+                  Query query = FirebaseFirestore.instance
+                      .collection('appointments')
+                      .where('userId', isEqualTo: user!.uid);
+
+                  if (selectedTab == 1) {
+                    // Upcoming tab
+                    query = query.where('status', whereIn: ['approved', 'ongoing']);
+                  } else {
+                    query = query.where('status', isEqualTo: getStatusFilter());
+                  }
+
+                  return query.snapshots();
+                })(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData ||
                     snapshot.data!.docs.isEmpty) {
@@ -167,13 +176,15 @@ class AppointmentCard extends StatelessWidget {
 
   Color statusColor(String status) {
     if (status == 'approved') return Colors.green;
+    if (status == 'ongoing') return Colors.blue;
     if (status == 'cancelled') return Colors.red;
     if (status == 'completed') return Colors.grey;
     return Colors.orange;
   }
 
   String statusText(String status) {
-    if (status == 'approved') return 'Ongoing';
+    if (status == 'approved') return 'Upcoming';
+    if (status == 'ongoing') return 'Ongoing';
     if (status == 'completed') return 'Completed';
     if (status == 'cancelled') return 'Cancelled';
     return 'Pending';
@@ -535,6 +546,14 @@ class AppointmentCard extends StatelessWidget {
                   );
                 },
               ),
+            ),
+          ],
+
+          if (status == 'ongoing') ...[
+            const SizedBox(height: 10),
+            const Text(
+              "Session is currently ongoing",
+              style: TextStyle(color: Colors.blue),
             ),
           ],
 

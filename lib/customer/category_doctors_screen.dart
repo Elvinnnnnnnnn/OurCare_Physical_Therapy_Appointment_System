@@ -200,7 +200,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
                                 children: [
 
                                   Text(
-                                    data['name'] ?? 'Unknown Doctor',
+                                    data['name'] ?? 'Unknown Therapist',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: kDarkBlue,
@@ -210,7 +210,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
                                   const SizedBox(height: 4),
 
                                   const Text(
-                                    'Doctor',
+                                    'Therapist',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: kGreyText,

@@ -147,7 +147,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Doctor updated')),
+        const SnackBar(content: Text('Therapist updated')),
       );
 
       Navigator.pop(context);
@@ -226,7 +226,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
       appBar: AppBar(
         title: const Text(
-          'Edit Doctor',
+          'Edit Therapist',
           style: TextStyle(
             color: kDarkBlue,
             fontWeight: FontWeight.bold,
@@ -271,7 +271,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
               children: [
 
                 const Text(
-                  'Doctor Information',
+                  'Therapist Information',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: kDarkBlue,
@@ -282,7 +282,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
                 TextField(
                   controller: nameCtrl,
-                  decoration: _input('Doctor Name', 'Enter doctor name'),
+                  decoration: _input('Therapist Name', 'Enter therapist name'),
                 ),
 
                 const SizedBox(height: 14),
@@ -312,7 +312,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
               children: [
 
                 const Text(
-                  'About Doctor',
+                  'About Therapist',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: kDarkBlue,
@@ -324,7 +324,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                 TextField(
                   controller: aboutCtrl,
                   maxLines: 4,
-                  decoration: _input('Description', 'About the doctor'),
+                  decoration: _input('Description', 'About the Therapist'),
                 ),
               ],
             ),
@@ -438,7 +438,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                   value: activated,
                   activeColor: kPrimaryBlue,
                   title: const Text(
-                    'Activate Doctor Account',
+                    'Activate Therapist Account',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: kDarkBlue,
@@ -446,8 +446,8 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                   ),
                   subtitle: Text(
                     activated
-                        ? 'Doctor can log in and receive appointments'
-                        : 'Doctor account is disabled',
+                        ? 'Therapist can log in and receive appointments'
+                        : 'Therapist account is disabled',
                     style: const TextStyle(fontSize: 12),
                   ),
                   onChanged: (value) {

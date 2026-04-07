@@ -204,6 +204,12 @@ class _RescheduleAppointmentScreenState
 
    if (widget.requirePayment) {
 
+    double originalAmount =
+    (widget.appointmentData['amountPaid'] ?? 0).toDouble();
+
+    double rescheduleFee =
+        (originalAmount * 0.30).roundToDouble();
+
     final paymentRef = await FirebaseFirestore.instance
         .collection('payments')
         .add({
@@ -211,7 +217,7 @@ class _RescheduleAppointmentScreenState
       'doctorId': widget.appointmentData['doctorId'] ?? '',
       'doctorName': widget.appointmentData['doctorName'] ?? '',
       'categoryName': widget.appointmentData['categoryName'] ?? '',
-      'amount': widget.appointmentData['amountPaid'] ?? 0,
+      'amount': rescheduleFee,
       'currency': 'PHP',
       'date': date,
       'time': _selectedTime,

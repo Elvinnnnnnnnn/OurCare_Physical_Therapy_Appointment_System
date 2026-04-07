@@ -234,6 +234,7 @@ class _CategoryCard extends StatelessWidget {
     final descCtrl = TextEditingController(text: currentDesc);
 
     File? pickedImage;
+    bool isLoading = false;
     final picker = ImagePicker();
 
     showDialog(
@@ -309,54 +310,84 @@ class _CategoryCard extends StatelessWidget {
                   backgroundColor: kPrimaryBlue,
                 ),
                 onPressed: () async {
-                  final newName = nameCtrl.text.trim();
-                  final normalized = newName.toLowerCase();
+                  if (isLoading) return;
 
-                  final existing = await FirebaseFirestore.instance
-                      .collection('categories')
-                      .where('nameLower', isEqualTo: normalized)
-                      .get();
-
-                  final duplicate = existing.docs.any(
-                    (doc) => doc.id != categoryId,
-                  );
-
-                  if (duplicate) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content:
-                            Text('Service name already exists'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  String? imageUrl = currentImage;
-
-                  if (pickedImage != null) {
-                    final ref = FirebaseStorage.instance
-                        .ref()
-                        .child('categories')
-                        .child(
-                            '${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-                    await ref.putFile(pickedImage!);
-                    imageUrl = await ref.getDownloadURL();
-                  }
-
-                  await FirebaseFirestore.instance
-                      .collection('categories')
-                      .doc(categoryId)
-                      .update({
-                    'name': newName,
-                    'nameLower': normalized,
-                    'description': descCtrl.text.trim(),
-                    'imageUrl': imageUrl,
+                  setState(() {
+                    isLoading = true;
                   });
 
-                  Navigator.pop(context);
+                  try {
+                    final newName = nameCtrl.text.trim();
+                    final normalized = newName.toLowerCase();
+
+                    final existing = await FirebaseFirestore.instance
+                        .collection('categories')
+                        .where('nameLower', isEqualTo: normalized)
+                        .get();
+
+                    final duplicate = existing.docs.any(
+                      (doc) => doc.id != categoryId,
+                    );
+
+                    if (duplicate) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Service name already exists'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    String? imageUrl = currentImage;
+
+                    if (pickedImage != null) {
+                      final ref = FirebaseStorage.instance
+                          .ref()
+                          .child('categories')
+                          .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+                      final uploadTask = await ref.putFile(pickedImage!);
+
+                      imageUrl = await uploadTask.ref.getDownloadURL();
+                    }
+
+                    await FirebaseFirestore.instance
+                        .collection('categories')
+                        .doc(categoryId)
+                        .update({
+                      'name': newName,
+                      'nameLower': normalized,
+                      'description': descCtrl.text.trim(),
+                      'imageUrl': imageUrl,
+                    });
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+
+                  } catch (e) {
+                    print(e);
+                  } finally {
+                    setState(() {
+                      isLoading = false;
+                    });
+                  }
                 },
-                child: const Text('Save'),
+                child: isLoading
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Save',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
               ),
             ],
           );
@@ -410,7 +441,9 @@ class _CategoryCard extends StatelessWidget {
                   .doc(categoryId)
                   .delete();
 
-              Navigator.pop(context);
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text('Delete'),
           ),

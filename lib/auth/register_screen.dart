@@ -22,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
 
   bool _isLoading = false;
+  bool _acceptedTerms = false;
 
   // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
@@ -59,8 +60,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
+  void _showTermsDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Terms and Conditions',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 12),
+              const SizedBox(
+                height: 300,
+                child: SingleChildScrollView(
+                  child: Text(
+                    'Your terms here...',
+                    style: TextStyle(fontSize: 14, height: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _acceptedTerms = true;
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Agree'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must accept the Terms and Conditions'),
+        ),
+      );
+      return;
+    }
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +145,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authService = AuthService();
 
-    final phone = '+63${_phoneController.text.trim()}';
+    String raw = _phoneController.text.trim();
+
+    if (raw.startsWith('0')) {
+      raw = raw.substring(1);
+    }
+
+    final phone = '+63$raw';
 
     final error = await authService.registerUser(
       fullName: _fullNameController.text.trim(),
@@ -228,6 +306,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
 
                 const SizedBox(height: 28),
+
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _acceptedTerms,
+                      onChanged: (value) {
+                        setState(() {
+                          _acceptedTerms = value ?? false;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _showTermsDialog,
+                        child: const Text(
+                          'I agree to the Terms and Conditions',
+                          style: TextStyle(
+                            color: kPrimaryBlue,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
 
                 SizedBox(
                   height: 52,

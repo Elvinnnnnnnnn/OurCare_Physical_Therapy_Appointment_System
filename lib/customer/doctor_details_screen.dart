@@ -278,7 +278,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: kDarkBlue),
         title: const Text(
-          'Doctor Details',
+          'Therapist Details',
           style: TextStyle(color: kDarkBlue),
         ),
       ),
@@ -396,6 +396,23 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           fontWeight: FontWeight.bold,
                           color: kPrimaryBlue,
                           fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      const Icon(Icons.work, size: 16, color: kPrimaryBlue),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${doctor['experience'] ?? '0'} years experience',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
