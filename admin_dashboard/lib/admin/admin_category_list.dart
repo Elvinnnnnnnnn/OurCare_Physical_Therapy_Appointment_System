@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data';
 
 class AdminCategoryList extends StatelessWidget {
   const AdminCategoryList({super.key});
@@ -92,7 +93,8 @@ class AdminCategoryList extends StatelessWidget {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
 
-    File? pickedImage;
+    XFile? pickedImage;
+    Uint8List? imageBytes;
     final picker = ImagePicker();
 
     showDialog(
@@ -153,18 +155,21 @@ class AdminCategoryList extends StatelessWidget {
                         );
 
                         if (picked != null) {
+                          final bytes = await picked.readAsBytes();
+
                           setState(() {
-                            pickedImage = File(picked.path);
+                            pickedImage = picked;
+                            imageBytes = bytes;
                           });
                         }
                       },
                       child: CircleAvatar(
                         radius: 45,
                         backgroundColor: kSoftBlue,
-                        backgroundImage: pickedImage != null
-                            ? FileImage(pickedImage!)
+                        backgroundImage: imageBytes != null
+                            ? MemoryImage(imageBytes!)
                             : null,
-                        child: pickedImage == null
+                        child: imageBytes == null
                             ? const Icon(Icons.camera_alt, size: 26)
                             : null,
                       ),
@@ -254,12 +259,13 @@ class AdminCategoryList extends StatelessWidget {
 
                         String? imageUrl;
 
-                        if (pickedImage != null) {
+                        if (imageBytes != null) {
                           final ref = FirebaseStorage.instance
                               .ref()
                               .child('categories/${DateTime.now().millisecondsSinceEpoch}.jpg');
 
-                          await ref.putFile(pickedImage!);
+                          await ref.putData(imageBytes!);
+
                           imageUrl = await ref.getDownloadURL();
                         }
 
@@ -401,45 +407,108 @@ class _CategoryCard extends StatelessWidget {
     final nameCtrl = TextEditingController(text: name);
     final descCtrl = TextEditingController(text: description);
 
+    XFile? pickedImage;
+    Uint8List? imageBytes;
+    final picker = ImagePicker();
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Service'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('categories')
-                  .doc(categoryId)
-                  .update({
-                'name': nameCtrl.text.trim(),
-                'nameLower': nameCtrl.text.trim().toLowerCase(),
-                'description': descCtrl.text.trim(),
-              });
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
 
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+          return AlertDialog(
+            title: const Text('Edit Service'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  /// IMAGE
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
+
+                      if (picked != null) {
+                        final bytes = await picked.readAsBytes();
+
+                        setState(() {
+                          pickedImage = picked;
+                          imageBytes = bytes;
+                        });
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: kSoftBlue,
+                      backgroundImage: imageBytes != null
+                          ? MemoryImage(imageBytes!)
+                          : (imageUrl != null && imageUrl!.isNotEmpty
+                              ? NetworkImage(imageUrl!) as ImageProvider
+                              : null),
+                      child: (imageBytes == null &&
+                              (imageUrl == null || imageUrl!.isEmpty))
+                          ? const Icon(Icons.camera_alt)
+                          : null,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                ],
+              ),
+            ),
+
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+
+              ElevatedButton(
+                onPressed: () async {
+
+                  String? newImageUrl = imageUrl;
+
+                  if (imageBytes != null) {
+                    final ref = FirebaseStorage.instance
+                        .ref()
+                        .child('categories/${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+                    await ref.putData(imageBytes!);
+
+                    newImageUrl = await ref.getDownloadURL();
+                  }
+
+                  await FirebaseFirestore.instance
+                      .collection('categories')
+                      .doc(categoryId)
+                      .update({
+                    'name': nameCtrl.text.trim(),
+                    'nameLower': nameCtrl.text.trim().toLowerCase(),
+                    'description': descCtrl.text.trim(),
+                    'imageUrl': newImageUrl,
+                  });
+
+                  Navigator.pop(context);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
