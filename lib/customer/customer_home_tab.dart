@@ -351,9 +351,10 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
-                      .collection('doctors')
-                      .where('activated', isEqualTo: true)
-                      .snapshots(),
+                    .collection('doctors')
+                    .where('activated', isEqualTo: true)
+                    .where('available', isEqualTo: true)
+                    .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return const Center(
@@ -384,7 +385,7 @@ class _CustomerHomeTabState extends State<CustomerHomeTab> {
                     if (filteredDoctors.isEmpty) {
                       return const Center(
                         child: Text(
-                          'No doctors found',
+                          'No therapist found',
                           style: TextStyle(color: Colors.grey),
                         ),
                       );

@@ -21,13 +21,6 @@ class AdminUserList extends StatelessWidget {
     return Scaffold(
       backgroundColor: kWhite,
       appBar: AppBar(
-        title: Text(
-          '${role[0].toUpperCase()}${role.substring(1)} Accounts',
-          style: const TextStyle(
-            color: kDarkBlue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
         backgroundColor: kWhite,
         elevation: 0.6,
         iconTheme: const IconThemeData(color: kDarkBlue),

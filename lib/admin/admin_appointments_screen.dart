@@ -124,8 +124,13 @@ class _AdminAppointmentsScreenState
   Future<void> _printAppointmentsReport() async {
 
     Query query = FirebaseFirestore.instance
-        .collection('appointments')
-        .where('status', isEqualTo: getStatusFilter());
+      .collection('appointments');
+
+      if (selectedTab == 1) {
+        query = query.where('status', whereIn: ['approved', 'ongoing']);
+      } else {
+        query = query.where('status', isEqualTo: getStatusFilter());
+      }
 
     if (selectedDoctorId != null) {
       query = query.where('doctorId', isEqualTo: selectedDoctorId);
@@ -134,50 +139,57 @@ class _AdminAppointmentsScreenState
     DateTime now = DateTime.now();
     DateTime start;
     DateTime end;
+    bool useDateFilter = selectedTab == 1 || selectedTab == 2;
 
-    switch (selectedRange) {
+    if (useDateFilter) {
+      switch (selectedRange) {
 
-      case ReportRange.today:
-        start = DateTime(now.year, now.month, now.day);
-        end = start.add(const Duration(days: 1));
-        query = query
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-            .where('createdAt', isLessThan: Timestamp.fromDate(end));
-        break;
+        case ReportRange.today:
+          start = DateTime(now.year, now.month, now.day);
+          end = start.add(const Duration(days: 1));
+          query = query
+              .where('appointmentAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+              .where('appointmentAt', isLessThan: Timestamp.fromDate(end));
+          break;
 
-      case ReportRange.week:
-        int weekday = now.weekday;
-        start = now.subtract(Duration(days: weekday - 1));
-        start = DateTime(start.year, start.month, start.day);
-        end = start.add(const Duration(days: 7));
-        query = query
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-            .where('createdAt', isLessThan: Timestamp.fromDate(end));
-        break;
+        case ReportRange.week:
+          int weekday = now.weekday;
+          start = now.subtract(Duration(days: weekday - 1));
+          start = DateTime(start.year, start.month, start.day);
+          end = start.add(const Duration(days: 7));
+          query = query
+              .where('appointmentAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+              .where('appointmentAt', isLessThan: Timestamp.fromDate(end));
+          break;
 
-      case ReportRange.month:
-        start = DateTime(now.year, now.month, 1);
-        end = DateTime(now.year, now.month + 1, 1);
-        query = query
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-            .where('createdAt', isLessThan: Timestamp.fromDate(end));
-        break;
+        case ReportRange.month:
+          start = DateTime(now.year, now.month, 1);
+          end = DateTime(now.year, now.month + 1, 1);
+          query = query
+              .where('appointmentAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+              .where('appointmentAt', isLessThan: Timestamp.fromDate(end));
+          break;
 
-      case ReportRange.year:
-        start = DateTime(now.year, 1, 1);
-        end = DateTime(now.year + 1, 1, 1);
-        query = query
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-            .where('createdAt', isLessThan: Timestamp.fromDate(end));
-        break;
+        case ReportRange.year:
+          start = DateTime(now.year, 1, 1);
+          end = DateTime(now.year + 1, 1, 1);
+          query = query
+              .where('appointmentAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+              .where('appointmentAt', isLessThan: Timestamp.fromDate(end));
+          break;
 
-      case ReportRange.all:
-        break;
+        case ReportRange.all:
+          break;
+      }
     }
 
-    final snapshot = await query
-      .orderBy('createdAt', descending: true)
-      .get();
+    Query finalQuery = query;
+
+    if (selectedTab == 1 || selectedTab == 2) {
+      finalQuery = finalQuery.orderBy('appointmentAt', descending: true);
+    }
+
+    final snapshot = await finalQuery.get();
 
     await Printing.layoutPdf(
       onLayout: (format) async {

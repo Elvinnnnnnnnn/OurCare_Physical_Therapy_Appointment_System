@@ -60,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  void _showTermsDialog() {
+void _showTermsDialog() {
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -73,8 +73,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+
               const Text(
                 'Terms and Conditions',
                 style: TextStyle(
@@ -82,28 +82,165 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 4),
+
+              const Text(
+                'OurCare Physical Therapy Clinic',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+              ),
+
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 12),
+
               const SizedBox(
-                height: 300,
+                height: 350,
                 child: SingleChildScrollView(
-                  child: Text(
-                    'Your terms here...',
-                    style: TextStyle(fontSize: 14, height: 1.5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      Text(
+                        'Last Updated: 2026',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      SizedBox(height: 12),
+
+                      Text(
+                        '1. Acceptance of Terms',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'By using OurCare Physical Therapy Clinic, you agree to these terms.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '2. Service',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'We provide appointment booking services. Providers are responsible for their services.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '3. Accounts',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'You must provide accurate information and keep your account secure.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '4. Appointments',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Appointments depend on availability. Late arrivals may be cancelled.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '5. Payments',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Payments are processed via third parties. Prices may change.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '6. Cancellation',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Refunds depend on provider policies.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '7. Rescheduling Policy',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Reschedule at least 7 days before appointment. Late reschedule may incur a 30% fee.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '8. User Conduct',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Do not misuse the app or provide false information.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '9. Liability',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'We are not liable for provider services or system issues.',
+                      ),
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        '10. Privacy',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Your data is handled according to our privacy policy.',
+                      ),
+
+                      SizedBox(height: 16),
+
+                      Text(
+                        'By using this app, you agree to these terms.',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+
+              const SizedBox(height: 16),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Close'),
                   ),
+
                   const SizedBox(width: 8),
+
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF1562E2),
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: () {
                       setState(() {
                         _acceptedTerms = true;

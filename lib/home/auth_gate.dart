@@ -104,7 +104,13 @@ class AuthGate extends StatelessWidget {
                 );
               }
 
-              final role = userData['role'];
+              final phoneVerified = userData['phoneVerified'] == true;
+
+              if (!phoneVerified) {
+                return const WelcomeScreen();
+              }
+
+              final role = userData['role'] ?? 'customer';
 
               // 🎭 ROLE ROUTING
               switch (role) {
@@ -143,9 +149,7 @@ class AuthGate extends StatelessWidget {
                   );
 
                 default:
-                  return const Scaffold(
-                    body: Center(child: Text('Invalid role')),
-                  );
+                  return const CustomerHome();
               }
             },
           ),

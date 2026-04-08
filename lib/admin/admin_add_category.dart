@@ -60,8 +60,8 @@ class _AdminAddCategoryState extends State<AdminAddCategory> {
 
       await FirebaseFirestore.instance.collection('categories').add({
         'name': name,
-        'nameLower': normalized, // 🔑 IMPORTANT
-        'description': '',
+        'nameLower': normalized,
+        'description': _descriptionController.text.trim(),
         'imageUrl': imageUrl,
         'createdAt': Timestamp.now(),
       });

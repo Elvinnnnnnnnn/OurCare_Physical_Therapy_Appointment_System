@@ -173,8 +173,14 @@ class DoctorHomeTab extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.schedule),
-                    label: const Text('Edit My Availability'),
+                    icon: const Icon(
+                      Icons.schedule,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Edit My Availability',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kPrimaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 16),

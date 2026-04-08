@@ -17,7 +17,7 @@ class AdminDoctorsTab extends StatelessWidget {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No doctors found'));
+          return const Center(child: Text('No therapist found'));
         }
 
         final doctors = snapshot.data!.docs;

@@ -35,7 +35,7 @@ class AdminDoctorList extends StatelessWidget {
           if (doctors.isEmpty) {
             return const Center(
               child: Text(
-                'No doctors found',
+                'No therapist found',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.black54,
@@ -316,8 +316,9 @@ class _DoctorTile extends StatelessWidget {
             ),
             child: const Text('Delete'),
             onPressed: () async {
-              try {
+              Navigator.pop(context);
 
+              try {
                 final callable = FirebaseFunctions.instanceFor(
                   region: 'us-central1',
                 ).httpsCallable('adminDeleteDoctor');
@@ -326,16 +327,14 @@ class _DoctorTile extends StatelessWidget {
                   'uid': doctorId,
                 });
 
-                Navigator.pop(context);
-
               } catch (e) {
-                print(e);
+                print("DELETE ERROR: $e");
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Delete failed')),
                 );
               }
-            },
+            }
           ),
         ],
       ),

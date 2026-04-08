@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:project/customer/customer_home_tab.dart';
 import 'login_screen.dart';
 import 'dart:async';
+import '../home/auth_gate.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -52,12 +52,8 @@ class _PhoneVerificationScreenState
 
 
     verificationCompleted: (credential) async {
-final user = FirebaseAuth.instance.currentUser;
-
-if (user != null) {
-await user.linkWithCredential(credential);
-}
-},
+    
+    },
 
 
     verificationFailed: (e) {
@@ -130,7 +126,7 @@ smsCode: otpController.text.trim(),
 final user = FirebaseAuth.instance.currentUser;
 
 if (user == null) {
-throw Exception('User not logged in');
+  throw Exception('User not logged in');
 }
 
 await user.linkWithCredential(credential);
@@ -152,11 +148,13 @@ ScaffoldMessenger.of(context).showSnackBar(
 const SnackBar(content: Text('Phone verified')),
 );
 
-Navigator.pushAndRemoveUntil(
-  context,
-  MaterialPageRoute(builder: (_) => const CustomerHomeTab()),
-  (route) => false,
-);
+Future.microtask(() {
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const AuthGate()),
+    (route) => false,
+  );
+});
 
 
 } on FirebaseAuthException catch (e) {
@@ -287,6 +285,7 @@ Widget build(BuildContext context) {
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
+                              color: Colors.white,
                             ),
                           ),
                   ),

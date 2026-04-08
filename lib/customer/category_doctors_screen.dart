@@ -124,7 +124,7 @@ class CategoryDoctorsScreen extends StatelessWidget {
                 if (doctors.isEmpty) {
                   return const Center(
                     child: Text(
-                      'No doctors in this service',
+                      'No therapist in this service',
                       style: TextStyle(color: Colors.grey),
                     ),
                   );

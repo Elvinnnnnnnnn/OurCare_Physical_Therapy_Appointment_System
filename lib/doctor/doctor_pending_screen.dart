@@ -55,7 +55,7 @@ class DoctorPendingScreen extends StatelessWidget {
 
                   /// DESCRIPTION
                   const Text(
-                    'Your doctor account has been created\n'
+                    'Your Therapist account has been created\n'
                     'and is currently under review.\n\n'
                     'Please wait for the administrator to activate your account.',
                     textAlign: TextAlign.center,

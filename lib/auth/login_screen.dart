@@ -36,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 🔐 FIREBASE LOGIN
-      await FirebaseAuth.instance.signOut();
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -55,6 +54,23 @@ class _LoginScreenState extends State<LoginScreen> {
         final role = data['role'] ?? 'patient';
 
         final phoneVerified = data['phoneVerified'] ?? false;
+
+        final isDisabled = data['disabled'] == true;
+
+        if (isDisabled) {
+          await FirebaseAuth.instance.signOut();
+
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your account has been disabled'),
+            ),
+          );
+
+          setState(() => _isLoading = false);
+          return;
+        }
 
         if (!phoneVerified) {
           await FirebaseAuth.instance.signOut();
@@ -92,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Your doctor account is not activated yet. Please contact admin.',
+                'Your Therapist account is not activated yet. Please contact admin.',
               ),
             ),
           );
