@@ -100,16 +100,16 @@ class AdminDoctorList extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isActivated
                           ? Colors.green.withOpacity(0.1)
-                          : Colors.orange.withOpacity(0.1),
+                          : Colors.red.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      isActivated ? 'Activated' : 'Pending',
+                      isActivated ? 'Activated' : 'Deactivated',
                       style: TextStyle(
                         fontSize: 12,
                         color: isActivated
                             ? Colors.green
-                            : Colors.orange,
+                            : Colors.red,
                       ),
                     ),
                   ),
@@ -119,6 +119,21 @@ class AdminDoctorList extends StatelessWidget {
                   // ACTIONS
                   Row(
                     children: [
+
+                      _actionBtn(
+                        icon: isActivated ? Icons.verified : Icons.verified_outlined,
+                        color: isActivated ? Colors.green : Colors.red,
+                        onTap: () async {
+                          await FirebaseFirestore.instance
+                              .collection('doctors')
+                              .doc(doc.id)
+                              .update({
+                            'activated': !isActivated,
+                          });
+                        },
+                      ),
+
+                      const SizedBox(width: 6),
 
                       _actionBtn(
                         icon: Icons.edit,
