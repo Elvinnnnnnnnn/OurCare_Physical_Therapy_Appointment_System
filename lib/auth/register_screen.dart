@@ -23,6 +23,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   bool _acceptedTerms = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;  
 
   // 🎨 Brand colors
   static const Color kWhite = Color(0xFFFFFFFF);
@@ -428,8 +430,19 @@ void _showTermsDialog() {
 
                 TextFormField(
                   controller: _passwordController,
-                  decoration: _inputStyle('Password'),
-                  obscureText: true,
+                  obscureText: _obscurePassword,
+                  decoration: _inputStyle('Password').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
                   validator: (v) =>
                       v != null && v.length < 6 ? 'Min 6 characters' : null,
                 ),
@@ -438,8 +451,22 @@ void _showTermsDialog() {
 
                 TextFormField(
                   controller: _confirmPasswordController,
-                  decoration: _inputStyle('Confirm Password'),
-                  obscureText: true,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: _inputStyle('Confirm Password').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword =
+                              !_obscureConfirmPassword;
+                        });
+                      },
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 28),

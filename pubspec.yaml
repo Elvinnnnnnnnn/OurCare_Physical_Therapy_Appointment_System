@@ -74,6 +74,8 @@ flutter:
     - assets/
     - assets/placeholder-400x400.jpg
     - assets/clinic-logo.png
+    - assets/hide.png
+    - assets/view.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

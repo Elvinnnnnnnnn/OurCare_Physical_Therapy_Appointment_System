@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool loading = false;
   String error = '';
+  bool _obscurePassword = true;
 
   Future<void> login() async {
     setState(() {
@@ -158,7 +159,7 @@ Widget build(BuildContext context) {
             /// PASSWORD
             TextField(
               controller: passwordController,
-              obscureText: true,
+              obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => login(),
               decoration: InputDecoration(
@@ -169,6 +170,18 @@ Widget build(BuildContext context) {
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
                 ),
               ),
             ),
