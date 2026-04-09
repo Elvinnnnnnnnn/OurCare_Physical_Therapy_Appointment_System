@@ -236,9 +236,11 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                       backgroundColor: kSoftBlue,
                       backgroundImage: _imageFile != null
                         ? FileImage(_imageFile!)
-                        : (photoUrl != null && photoUrl.isNotEmpty)
-                            ? NetworkImage(photoUrl)
-                            : null,
+                        : _imageBytes != null
+                            ? MemoryImage(_imageBytes!)
+                            : (photoUrl != null && photoUrl.isNotEmpty)
+                                ? NetworkImage(photoUrl)
+                                : null,
                       child: _imageFile == null && photoUrl == null
                           ? const Icon(Icons.camera_alt)
                           : null,
@@ -335,18 +337,22 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
                             color: kSoftBlue,
                             borderRadius: BorderRadius.circular(10),
                             image: _qrImageFile != null
-                                ? DecorationImage(
-                                    image: FileImage(_qrImageFile!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : (widget.doctorData['qrImageUrl'] != null &&
-                                    widget.doctorData['qrImageUrl'].toString().isNotEmpty)
-                                    ? DecorationImage(
-                                        image: NetworkImage(
-                                            widget.doctorData['qrImageUrl']),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
+                              ? DecorationImage(
+                                  image: FileImage(_qrImageFile!),
+                                  fit: BoxFit.cover,
+                                )
+                              : _qrImageBytes != null
+                                  ? DecorationImage(
+                                      image: MemoryImage(_qrImageBytes!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : (widget.doctorData['qrImageUrl'] != null &&
+                                      widget.doctorData['qrImageUrl'].toString().isNotEmpty)
+                                      ? DecorationImage(
+                                          image: NetworkImage(widget.doctorData['qrImageUrl']),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                           ),
                           child: _qrImageFile == null &&
                                   widget.doctorData['qrImageUrl'] == null

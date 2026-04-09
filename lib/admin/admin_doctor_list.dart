@@ -196,7 +196,7 @@ class _DoctorTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isActivated ? Colors.green : Colors.red,
+                          color: isActivated ? Colors.orange : Colors.green,
                         ),
                       ),
                     ),
@@ -240,16 +240,14 @@ class _DoctorTile extends StatelessWidget {
               const SizedBox(width: 10),
               _actionButton(
                 icon: Icons.verified,
-                label: isActivated ? 'Activated' : 'Activate',
+                label: isActivated ? 'Deactivate' : 'Activate',
                 color: isActivated ? Colors.green : Colors.red,
-                onTap: isActivated
-                    ? null
-                    : () async {
-                        await FirebaseFirestore.instance
-                            .collection('doctors')
-                            .doc(doctorId)
-                            .update({'activated': true});
-                      },
+                onTap: () async {
+                  await FirebaseFirestore.instance
+                      .collection('doctors')
+                      .doc(doctorId)
+                      .update({'activated': !isActivated});
+                },
               ),
             ],
           ),
@@ -277,8 +275,8 @@ class _DoctorTile extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
+              Icon(icon, size: 16, color: color),
+                const SizedBox(width: 4),
               Text(
                 label,
                 style: TextStyle(

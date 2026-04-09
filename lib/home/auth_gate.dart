@@ -67,8 +67,15 @@ class AuthGate extends StatelessWidget {
                 );
               }
 
-              final userData =
-                  userSnapshot.data!.data() as Map<String, dynamic>;
+              final rawData = userSnapshot.data!.data();
+
+              if (rawData == null) {
+                return const Scaffold(
+                  body: Center(child: Text('User data missing')),
+                );
+              }
+
+              final userData = rawData as Map<String, dynamic>;
 
               // 🚫 BLOCK DISABLED USERS
               if (userData['disabled'] == true) {

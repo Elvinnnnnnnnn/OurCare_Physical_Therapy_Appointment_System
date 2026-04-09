@@ -119,6 +119,14 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
     try {
 
+      if (widget.doctorData['userId'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Missing userId')),
+        );
+        setState(() => isLoading = false);
+        return;
+      }
+
       final photoUrl = await _uploadPhoto();
       final qrUrl = await _uploadQrImage();
 
@@ -138,11 +146,12 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       });
 
       await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.doctorData['userId'])
-          .update({
-        'fullName': nameCtrl.text.trim(),
-      });
+        .collection('users')
+        .doc(widget.doctorData['userId'])
+        .set({
+      'fullName': nameCtrl.text.trim(),
+      'phone': widget.doctorData['phone'] ?? '',
+    }, SetOptions(merge: true));
 
       if (!mounted) return;
 
@@ -218,6 +227,7 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('BUILD CALLED');
 
     final String? photoUrl = widget.doctorData['photoUrl'];
 

@@ -42,6 +42,13 @@ class _RescheduleAppointmentScreenState
   Future<void> loadDoctor() async {
     final doctorId = widget.appointmentData['doctorId'];
 
+    if (doctorId == null || doctorId.toString().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid doctor data')),
+      );
+      return;
+    }
+
     final doc = await FirebaseFirestore.instance
         .collection('doctors')
         .doc(doctorId)
@@ -49,7 +56,16 @@ class _RescheduleAppointmentScreenState
 
     if (doc.exists) {
       setState(() {
-        doctorData = doc.data()!;
+        final data = doc.data();
+
+        if (data == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Doctor data not found')),
+          );
+          return;
+        }
+
+        doctorData = data;
         loadingDoctor = false;
       });
     }
@@ -95,12 +111,15 @@ class _RescheduleAppointmentScreenState
       Uri.parse("https://date.nager.at/api/v3/PublicHolidays/$year/PH"),
     );
 
-    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-    holidays = data.map<DateTime>((holiday) {
-      return DateTime.parse(holiday['date']);
-    }).toList();
-
+      holidays = data.map<DateTime>((holiday) {
+        return DateTime.parse(holiday['date']);
+      }).toList();
+    } else {
+      holidays = [];
+    }
     setState(() {});
   }
 

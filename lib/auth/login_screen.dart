@@ -51,7 +51,28 @@ class _LoginScreenState extends State<LoginScreen> {
           .doc(user.uid)
           .get(const GetOptions(source: Source.server));
 
-        final data = doc.data() as Map<String, dynamic>;
+        if (!doc.exists || doc.data() == null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'email': user.email,
+            'role': 'doctor', // or 'customer' depending on your logic
+            'phoneVerified': false,
+            'disabled': false,
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account initialized. Please login again')),
+          );
+
+          await FirebaseAuth.instance.signOut();
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final data = doc.data()!;
+
         final role = data['role'] ?? 'patient';
 
         final phoneVerified = data['phoneVerified'] ?? false;
@@ -74,7 +95,16 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (!phoneVerified) {
-          await FirebaseAuth.instance.signOut();
+          final phone = data['phone'];
+
+          if (phone == null || phone.toString().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please set your phone number first')),
+            );
+
+            setState(() => _isLoading = false);
+            return;
+          }
 
           if (!mounted) return;
 
@@ -82,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             MaterialPageRoute(
               builder: (_) => PhoneVerificationScreen(
-                phoneNumber: data['phone'],
+                phoneNumber: phone,
               ),
             ),
           );
