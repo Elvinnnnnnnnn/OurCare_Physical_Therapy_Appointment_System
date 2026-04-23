@@ -154,16 +154,10 @@ class _AdminEditDoctorScreenState extends State<AdminEditDoctorScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.doctorData['userId'])
-          .update({
+          .set({
         'photoUrl': photoUrl,
-      });
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.doctorData['userId'])
-          .update({
         'fullName': nameCtrl.text.trim(),
-      });
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
 

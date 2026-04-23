@@ -34,6 +34,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+  String consultationType = 'online';
 
   Map<String, dynamic> get availability {
     final data = widget.doctorData['availability'];
@@ -233,6 +234,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         'currency': 'PHP',
         'date': date,
         'times': _selectedTimes, // IMPORTANT (list of times)
+        'consultationType': consultationType,
         'dateTime': Timestamp.now(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
@@ -421,15 +423,20 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   const SizedBox(height: 12),
 
                   /// DESCRIPTION
-                  Text(
-                    doctor['aboutMe'] ?? 'No description available',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.black87,
+                  SizedBox(
+                    height: 100,
+                    child: Scrollbar(
+                      child: SingleChildScrollView(
+                        child: Text(
+                          doctor['aboutMe'] ?? 'No description available',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  )
                 ],
               ),
             ),
@@ -592,6 +599,85 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   );
                 },
               ),
+
+              const SizedBox(height: 20),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  const Text(
+                    'Consultation Type',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              consultationType = 'online';
+                              print("SELECTED: online");
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: consultationType == 'online'
+                                  ? Colors.blue
+                                  : Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Online',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              consultationType = 'physical';
+                              print("SELECTED: physical");
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: consultationType == 'physical'
+                                  ? Colors.blue
+                                  : Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Clinic Visit',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    ],
+                  ),
+                ],
+              ),
+
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,

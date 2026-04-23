@@ -14,13 +14,15 @@ void main() async {
   );
 
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug,
+    androidProvider: AndroidProvider.playIntegrity,
   );
 
-  await FirebaseMessaging.instance.requestPermission();
-
-  final fcmToken = await FirebaseMessaging.instance.getToken();
-  print("FCM TOKEN: $fcmToken");
+  try {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    print("FCM TOKEN: $fcmToken");
+  } catch (e) {
+    print("FCM ERROR: $e");
+  }
 
   await NotificationService.init();
   await NotificationService.requestPermissions();

@@ -505,6 +505,17 @@ class _AdminAppointmentCard extends StatelessWidget {
                         color: Colors.grey,
                       ),
                     ),
+
+                    Text(
+                      appointment['consultationType'] == 'online'
+                          ? 'Online Consultation'
+                          : 'Clinic Visit',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -624,14 +635,32 @@ class _AdminAppointmentCard extends StatelessWidget {
                 ),
 
               /// APPROVED
-              if (status == 'approved')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _updateStatus('ongoing'),
-                  child: const Text('Start Session'),
+              /// ONLINE CONSULTATION
+              if (status == 'approved' &&
+                  appointment['consultationType'] == 'online')
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: const Text(
+                    'Waiting for doctor to start online consultation',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
+
+              /// CLINIC VISIT
+              if (status == 'approved' &&
+                  appointment['consultationType'] == 'physical')
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _updateStatus('ongoing'),
+                    child: const Text('Start Session'),
+                  ),
+                ),
               if (status == 'ongoing')
                 SizedBox(
                 width: double.infinity,

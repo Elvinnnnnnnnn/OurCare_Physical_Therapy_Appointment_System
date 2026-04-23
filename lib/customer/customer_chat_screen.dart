@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../shared/video_call_screen.dart';
+import '../shared/incoming_call_screen.dart';
 
 class CustomerChatScreen extends StatefulWidget {
   final String chatId;
@@ -26,9 +28,13 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
   static const Color kSoftBlue = Color(0xFFB3EBF2);
   static const Color kPrimaryBlue = Color(0xFF1562E2);
   static const Color kDarkBlue = Color(0xFF001C99);
+  final ScrollController _scrollController = ScrollController();
+  bool isIncomingScreenOpen = false;
 
   String doctorName = 'Doctor';
   String? doctorPhotoUrl;
+
+  String? lastCallId;
 
   @override
   void initState() {
@@ -86,6 +92,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
 
     _controller.clear();
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -97,12 +104,12 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
         backgroundColor: kWhite,
         elevation: 0,
         iconTheme: const IconThemeData(color: kDarkBlue),
+
         title: Row(
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor:
-                  kPrimaryBlue.withOpacity(0.1),
+              backgroundColor: kPrimaryBlue.withOpacity(0.1),
               backgroundImage: doctorPhotoUrl != null
                   ? NetworkImage(doctorPhotoUrl!)
                   : null,
@@ -129,6 +136,70 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
             ),
           ],
         ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.video_call, color: kPrimaryBlue),
+            onPressed: () async {
+              final existingCall = await FirebaseFirestore.instance
+                .collection('calls')
+                .where('chatId', isEqualTo: widget.chatId)
+                .where('status', isEqualTo: 'calling')
+                .get();
+
+              if (existingCall.docs.isNotEmpty) {
+                print("CALL ALREADY EXISTS");
+                return;
+              }
+
+              final chatSnap = await FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(widget.chatId)
+                  .get();
+
+              final doctorAuthUid = chatSnap['doctorId'];
+
+              final callId = FirebaseFirestore.instance.collection('calls').doc().id;
+              final channelName = DateTime.now().millisecondsSinceEpoch.toString();
+
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user!.uid)
+                  .get();
+
+              final userData = userDoc.data();
+
+              await FirebaseFirestore.instance.collection('calls').doc(callId).set({
+                'callerId': user!.uid,
+                'receiverId': doctorAuthUid,
+                'channelName': channelName,
+                'chatId': widget.chatId,
+
+                // 🔥 FIXED
+                'callerName': userData?['fullName'] ?? 'Patient',
+                'callerPhoto': userData?['photoUrl'],
+
+                'receiverName': doctorName,
+                'receiverPhoto': doctorPhotoUrl,
+
+                'status': 'calling',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoCallScreen(
+                    channelName: channelName,
+                    callId: callId,
+                    chatId: widget.chatId,
+                    isCaller: true,
+                  ),
+                ),
+              );
+            }
+          ),
+        ],
       ),
 
       /// 💬 BODY
@@ -151,15 +222,65 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
 
                 final messages = snapshot.data!.docs;
 
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(
+                      _scrollController.position.maxScrollExtent,
+                    );
+                  }
+                });
+
                 return ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
-                    final isMe =
-                        msg['senderId'] == user!.uid;
+                    final data = msg.data() as Map<String, dynamic>;
 
-                    final Timestamp? ts = msg['createdAt'];
+                    final isMe = data['senderId'] == user!.uid;
+
+                    if (data.containsKey('type') && data['type'] == 'call') {
+                      final Timestamp? ts = data['createdAt'];
+
+                      String time = '';
+
+                      if (ts != null) {
+                        final dt = ts.toDate();
+                        time = DateFormat('hh:mm a').format(dt);
+                      }
+
+                      return Center(
+                        child: Column(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                data['text'] ?? '',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              time,
+                              style: TextStyle(
+                                color: Colors.grey.withOpacity(0.7),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final Timestamp? ts = data['createdAt'];
 
                     String time = '';
 
@@ -198,7 +319,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              msg['text'],
+                              data['text'],
                               style: TextStyle(
                                 color: isMe ? kWhite : kDarkBlue,
                                 fontSize: 14,

@@ -667,6 +667,17 @@ class _AdminAppointmentCard extends StatelessWidget {
                         fontSize: 12,
                       ),
                     ),
+
+                    Text(
+                      appointment['consultationType'] == 'online'
+                          ? 'Online Consultation'
+                          : 'Clinic Visit',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -829,21 +840,33 @@ class _AdminAppointmentCard extends StatelessWidget {
             ),
           ],
 
-          if (status == 'approved') ...[
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryBlue,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => _updateStatus('ongoing'),
-                child: const Text('Start Session'),
-              ),
+          if (status == 'approved' &&
+            appointment['consultationType'] == 'online') ...[
+          const SizedBox(height: 14),
+          const Text(
+            'Waiting for doctor to start online consultation',
+            style: TextStyle(
+              color: Colors.blue,
+              fontWeight: FontWeight.bold,
             ),
-          ],
+          ),
+        ],
 
+        if (status == 'approved' &&
+            appointment['consultationType'] == 'physical') ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryBlue,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => _updateStatus('ongoing'),
+              child: const Text('Start Session'),
+            ),
+          ),
+        ],
           if (status == 'ongoing') ...[
             const SizedBox(height: 14),
             SizedBox(
@@ -864,6 +887,7 @@ class _AdminAppointmentCard extends StatelessWidget {
   }
 
   Future<void> _updateStatus(String newStatus) async {
+  try {
     final Map<String, dynamic> updateData = {
       'status': newStatus,
     };
@@ -875,6 +899,9 @@ class _AdminAppointmentCard extends StatelessWidget {
           (appointment['date'] ?? '').toString();
       final String rawTime =
           (appointment['time'] ?? '').toString();
+
+      print('DATE: $dateStr');
+      print('TIME: $rawTime');
 
       final String startTime =
           rawTime.split(' - ').first.trim();
@@ -907,15 +934,18 @@ class _AdminAppointmentCard extends StatelessWidget {
           Timestamp.fromDate(appointmentDateTime);
       updateData['reminderScheduled'] = false;
 
-      // 🔥 CALL NOTIFICATION HERE
-      await NotificationService.scheduleAllReminders(
-        appointmentDateTime: appointmentDateTime,
-      );
+      NotificationService.scheduleAllReminders(
+  appointmentDateTime: appointmentDateTime,
+);
     }
 
     await FirebaseFirestore.instance
         .collection('appointments')
         .doc(appointmentId)
         .update(updateData);
+
+  } catch (e) {
+    print('ERROR: $e');
   }
+}
 }

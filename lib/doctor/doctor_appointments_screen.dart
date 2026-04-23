@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:project/services/notification_service.dart';
+import 'doctor_chat_screen.dart';
 
 enum ReportRange {
     today,
@@ -589,6 +590,16 @@ class _DoctorAppointmentCard extends StatelessWidget {
                       (appointment['categoryName'] ?? '').toString(),
                       style: const TextStyle(color: Colors.grey),
                     ),
+                    Text(
+                      appointment['consultationType'] == 'online'
+                          ? 'Online Consultation'
+                          : 'Clinic Visit',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -753,7 +764,43 @@ class _DoctorAppointmentCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _updateStatus('ongoing'),
+                onPressed: () async {
+                  await _updateStatus('ongoing');
+
+                  final String type = (appointment['consultationType'] ?? 'online');
+
+                  if (type == 'online') {
+                    final String patientId = appointment['userId'];
+                    final String doctorAuthUid = FirebaseAuth.instance.currentUser!.uid;
+                    final String chatId = '${patientId}_$doctorAuthUid';
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DoctorChatScreen(
+                          chatId: chatId,
+                          patientId: patientId,
+                        ),
+                      ),
+                    );
+                  } else {
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Clinic Visit'),
+                        content: const Text(
+                          'Proceed with in-person consultation at the clinic.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('OK'),
+                          )
+                        ],
+                      ),
+                    );
+                  }
+                },
                 child: const Text('Start Session'),
               ),
             ),
@@ -823,6 +870,20 @@ class _DoctorAppointmentCard extends StatelessWidget {
         'reminderScheduled': false,
         'paymentStatus': 'approved',
       });
+
+      final String patientId = appointment['userId'];
+      final String doctorAuthUid = FirebaseAuth.instance.currentUser!.uid;
+
+      final String chatId = '${patientId}_$doctorAuthUid';
+
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'customerId': patientId,
+        'doctorId': doctorAuthUid,
+        'doctorName': appointment['doctorName'],
+        'appointmentId': appointmentId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       final paymentId = appointment['paymentId'];
 

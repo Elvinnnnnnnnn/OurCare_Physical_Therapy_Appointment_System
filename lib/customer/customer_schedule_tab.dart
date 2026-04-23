@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'reschedule_appointment_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'customer_chat_screen.dart';
 
 class CustomerScheduleTab extends StatefulWidget {
   const CustomerScheduleTab({super.key});
@@ -387,6 +388,17 @@ class AppointmentCard extends StatelessWidget {
                       categoryName,
                       style: const TextStyle(color: Colors.grey),
                     ),
+
+                    Text(
+                      (appointment['consultationType'] ?? 'physical') == 'online'
+                          ? 'Online Consultation'
+                          : 'Clinic Visit',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -549,11 +561,29 @@ class AppointmentCard extends StatelessWidget {
             ),
           ],
 
-          if (status == 'ongoing') ...[
+          if (status == 'ongoing' && (appointment['consultationType'] ?? 'physical') == 'online') ...[
             const SizedBox(height: 10),
-            const Text(
-              "Session is currently ongoing",
-              style: TextStyle(color: Colors.blue),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  final user = FirebaseAuth.instance.currentUser!;
+                  final String doctorId = appointment['doctorId'];
+
+                  final String chatId = '${user.uid}_$doctorId';
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CustomerChatScreen(
+                        chatId: chatId,
+                        doctorName: appointment['doctorName'],
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Join Consultation'),
+              ),
             ),
           ],
 

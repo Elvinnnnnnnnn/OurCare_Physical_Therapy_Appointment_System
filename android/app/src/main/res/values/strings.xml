@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OurCare Physical Therapy</string>
+
+    <string name="facebook_app_id">2060448021201670</string>
+    <string name="facebook_client_token">2905d5b73e3fabddfeb9620292c60b90</string>
+    <string name="fb_login_protocol_scheme">fb2060448021201670</string>
 </resources>

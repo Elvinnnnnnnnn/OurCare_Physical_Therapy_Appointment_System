@@ -4,6 +4,10 @@ import 'doctor_home_tab.dart';
 import 'doctor_messages_tab.dart';
 import 'doctor_appointments_screen.dart';
 import 'doctor_profile_tab.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../shared/incoming_call_screen.dart';
+import 'dart:async';
 
 class DoctorHome extends StatefulWidget {
   const DoctorHome({super.key});
@@ -27,6 +31,80 @@ class _DoctorHomeState extends State<DoctorHome> {
     DoctorAppointmentsScreen(),
     DoctorProfileTab(),
   ];
+StreamSubscription? callListener;
+  bool isIncomingShown = false;
+  final Set<String> handledCalls = {};
+
+  void listenIncomingCalls() {
+  final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
+  callListener?.cancel();
+
+    callListener = FirebaseFirestore.instance
+      .collection('calls')
+      .where('receiverId', isEqualTo: currentUserId)
+      .where('status', isEqualTo: 'calling')
+      .snapshots()
+      .listen((snapshot) {
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+
+      final status = data['status'];
+
+      if (
+        status != 'calling' ||
+        isIncomingShown ||
+        handledCalls.contains(doc.id)
+      ) {
+        continue;
+      }
+
+        handledCalls.add(doc.id);
+        isIncomingShown = true;
+
+        print("DOCTOR INCOMING CALL");
+
+        final callerName = data['callerName'] ?? "Unknown";
+        final chatId = data['chatId'] ?? "";
+
+        if (chatId.isEmpty) {
+          print("ERROR: chatId is null (DOCTOR)");
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => IncomingCallScreen(
+              callId: doc.id,
+              callerName: callerName,
+              chatId: chatId,
+              callerPhoto: data['callerPhoto'],
+              callerId: data['callerId'],
+            ),
+          ),
+        ).then((_) {
+        isIncomingShown = false;
+
+        Future.delayed(const Duration(seconds: 2), () {
+          handledCalls.remove(doc.id);
+        });
+      });
+    }
+  });
+}
+
+@override
+void dispose() {
+  callListener?.cancel();
+  super.dispose();
+}
+
+@override
+void initState() {
+  super.initState();
+  listenIncomingCalls();
+}
 
   @override
   Widget build(BuildContext context) {

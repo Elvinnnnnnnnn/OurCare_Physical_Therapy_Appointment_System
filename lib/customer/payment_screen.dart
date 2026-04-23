@@ -200,6 +200,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             : 'cash_pending',
         'paymentMethod': paymentMethod,
         'paymentId': widget.paymentId,
+        'consultationType': data['consultationType'] ?? 'online',
         'createdAt': FieldValue.serverTimestamp(),
       });
 

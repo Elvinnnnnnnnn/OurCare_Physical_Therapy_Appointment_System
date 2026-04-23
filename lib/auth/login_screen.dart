@@ -8,6 +8,7 @@ import 'phone_verification_screen.dart';
 import 'package:project/customer/customer_home.dart';
 import 'package:project/admin/admin_home_screen.dart';
 import 'package:project/doctor/doctor_home.dart';
+import '../auth/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -361,7 +362,179 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 10),
+
+                      const Text(
+                        'Or continue with',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 14,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+
+                          GestureDetector(
+                            onTap: () async {
+                              final user = await AuthService().signInWithGoogle();
+
+                              if (user == null) return;
+
+                              if (!mounted) return;
+
+                              final doc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .get();
+
+                              final data = doc.data()!;
+                              final role = data['role'] ?? 'customer';
+
+                              if (role == 'admin') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+                                  (route) => false,
+                                );
+                              } else if (role == 'doctor') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DoctorHome()),
+                                  (route) => false,
+                                );
+                              } else {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CustomerHome()),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Image.asset(
+                                'assets/google.png',
+                                height: 32,
+                                width: 32,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 20),
+
+                          GestureDetector(
+                            onTap: () async {
+                              final user = await AuthService().signInWithFacebook();
+
+                              if (user == null) return;
+
+                              if (!mounted) return;
+
+                              final doc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .get();
+
+                              final data = doc.data()!;
+                              final role = data['role'] ?? 'customer';
+
+                              if (role == 'admin') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+                                  (route) => false,
+                                );
+                              } else if (role == 'doctor') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DoctorHome()),
+                                  (route) => false,
+                                );
+                              } else {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CustomerHome()),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Image.asset(
+                                'assets/facebook.png',
+                                height: 32,
+                                width: 32,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 20),
+
+                          GestureDetector(
+                            onTap: () async {
+                              final user = await AuthService().signInWithFacebook();
+
+                              if (user == null) return;
+
+                              if (!mounted) return;
+
+                              final doc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .get();
+
+                              final data = doc.data()!;
+                              final role = data['role'] ?? 'customer';
+
+                              if (role == 'admin') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+                                  (route) => false,
+                                );
+                              } else if (role == 'doctor') {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DoctorHome()),
+                                  (route) => false,
+                                );
+                              } else {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CustomerHome()),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Image.asset(
+                                'assets/instagram.png',
+                                height: 32,
+                                width: 32,
+                              ),
+                            ),
+                          ),
+
+                        ],
+                      ),
+                      const SizedBox(height: 10),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,

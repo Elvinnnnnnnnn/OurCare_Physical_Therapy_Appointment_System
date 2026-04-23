@@ -17,12 +17,15 @@ class RescheduleAppointmentScreen extends StatefulWidget {
     required this.appointmentId,
     required this.appointmentData,
     required this.requirePayment,
+    
   });
 
   @override
   State<RescheduleAppointmentScreen> createState() =>
       _RescheduleAppointmentScreenState();
 }
+
+String consultationType = 'physical';
 
 class _RescheduleAppointmentScreenState
     extends State<RescheduleAppointmentScreen> {
@@ -133,6 +136,10 @@ class _RescheduleAppointmentScreenState
   @override
   void initState() {
     super.initState();
+
+    consultationType =
+        widget.appointmentData['consultationType'] ?? 'physical';
+
     loadDoctor();
     loadHolidays();
   }
@@ -252,9 +259,10 @@ class _RescheduleAppointmentScreenState
         .collection('appointments')
         .doc(widget.appointmentId)
         .update({
-      'paymentId': paymentRef.id,
-      'status': 'pending', // 🔥 THIS FIXES YOUR ISSUE
-    });
+        'paymentId': paymentRef.id,
+        'status': 'pending',
+        'consultationType': consultationType,
+      });
 
   if (!mounted) return;
 
@@ -278,6 +286,7 @@ class _RescheduleAppointmentScreenState
     'time': _selectedTime,
     'dateTime': Timestamp.fromDate(newDateTime),
     'status': 'pending',
+    'consultationType': consultationType,
   });
 
   if (!mounted) return;
@@ -486,6 +495,81 @@ class _RescheduleAppointmentScreenState
                   );
                 },
               ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'Consultation Type',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        consultationType = 'online';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: consultationType == 'online'
+                            ? kPrimaryBlue
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Online',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: consultationType == 'online'
+                              ? Colors.white
+                              : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 10),
+
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        consultationType = 'physical';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: consultationType == 'physical'
+                            ? kPrimaryBlue
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Clinic Visit',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: consultationType == 'physical'
+                              ? Colors.white
+                              : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              ],
+            ),
 
             const SizedBox(height: 30),
 
